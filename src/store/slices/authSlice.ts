@@ -1,7 +1,8 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 
-interface User {
+// Export the User interface so it can be imported in other files
+export interface User {
   email: string;
   isLoggedIn: boolean;
 }
