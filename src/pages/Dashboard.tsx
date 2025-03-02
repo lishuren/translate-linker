@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Upload, Languages, HistoryIcon, ArrowDown, FileType, Check, AlertCircle, Loader2 } from "lucide-react";
@@ -11,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "@/hooks/use-redux";
 import { uploadDocument, fetchTranslations, setFile, setTargetLanguage, clearUpload } from "@/store/slices/translationSlice";
+import { getDownloadUrl } from "@/services/translationApi";
 import { format } from "date-fns";
 
 const LANGUAGES = [
@@ -64,7 +64,6 @@ const Dashboard = () => {
   };
 
   const handleFile = (file: File) => {
-    // Check if file is a document
     const validTypes = [
       'application/pdf',
       'application/msword',
@@ -128,6 +127,10 @@ const Dashboard = () => {
     }
   };
 
+  const handleDownload = (translationId: string) => {
+    window.location.href = getDownloadUrl(translationId);
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto">
       <motion.div
@@ -163,7 +166,6 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* File Upload Area */}
               <div 
                 className={`border-2 border-dashed rounded-lg p-8 transition-all
                   ${dragActive ? 'border-primary bg-primary/5' : 'border-border'} 
@@ -218,7 +220,6 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Target Language Selector */}
               <div className="space-y-2">
                 <Label htmlFor="target-language">Target Language</Label>
                 <Select 
@@ -327,11 +328,13 @@ const Dashboard = () => {
                           </span>
                         </div>
 
-                        {translation.downloadUrl && (
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={translation.downloadUrl} download>
-                              Download
-                            </a>
+                        {translation.status === "completed" && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleDownload(translation.id)}
+                          >
+                            Download
                           </Button>
                         )}
                       </div>

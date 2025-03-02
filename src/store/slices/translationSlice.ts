@@ -50,13 +50,19 @@ const initialState: TranslationState = {
   error: null,
 };
 
-// Update API endpoint URL based on environment
-// In development, it will connect to localhost:5000
-// In production, you would set this to your actual backend URL
+// API base URL determined by environment
+// In development, connect to localhost:5000
+// In production, use relative URL to the backend
 const API_BASE_URL = import.meta.env.DEV 
   ? "http://localhost:5000" 
   : "/api";
 
+/**
+ * Uploads a document to the backend for translation
+ * 
+ * This thunk sends the file and target language to the backend API,
+ * which processes it using Langchain, DeepSeek LLM, and RAG
+ */
 export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
   async (
@@ -70,10 +76,11 @@ export const uploadDocument = createAsyncThunk(
 
       console.log(`Uploading document "${file.name}" for translation to ${targetLanguage}`);
       
-      // Use the Python backend API
+      // Call the backend API endpoint
       const response = await fetch(`${API_BASE_URL}/api/translation/upload`, {
         method: "POST",
         body: formData,
+        // No Content-Type header needed as browser sets it automatically with boundary for FormData
       });
 
       if (!response.ok) {
@@ -89,22 +96,27 @@ export const uploadDocument = createAsyncThunk(
         const pollInterval = setInterval(async () => {
           try {
             const pollResponse = await fetch(`${API_BASE_URL}/api/translation/status/${data.translation.id}`);
-            if (pollResponse.ok) {
-              const pollData = await pollResponse.json();
+            
+            if (!pollResponse.ok) {
+              console.error("Failed to poll translation status");
+              clearInterval(pollInterval);
+              return;
+            }
+            
+            const pollData = await pollResponse.json();
+            
+            // Update progress
+            dispatch(updateTranslationProgress({ 
+              id: data.translation.id, 
+              progress: pollData.progress || 0 
+            }));
+            
+            // If completed or failed, stop polling
+            if (pollData.status === "completed" || pollData.status === "failed") {
+              clearInterval(pollInterval);
               
-              // Update progress
-              dispatch(updateTranslationProgress({ 
-                id: data.translation.id, 
-                progress: pollData.progress || 0 
-              }));
-              
-              // If completed or failed, stop polling
-              if (pollData.status === "completed" || pollData.status === "failed") {
-                clearInterval(pollInterval);
-                
-                // Refresh translations list to get the latest status
-                dispatch(fetchTranslations());
-              }
+              // Refresh translations list to get the latest status
+              dispatch(fetchTranslations());
             }
           } catch (error) {
             console.error("Error polling translation status:", error);
@@ -120,6 +132,11 @@ export const uploadDocument = createAsyncThunk(
   }
 );
 
+/**
+ * Fetches the translation history from the backend API
+ * 
+ * This thunk retrieves all past translations for the current user
+ */
 export const fetchTranslations = createAsyncThunk(
   "translation/fetchTranslations",
   async (_, { rejectWithValue }) => {
@@ -138,6 +155,28 @@ export const fetchTranslations = createAsyncThunk(
     } catch (error) {
       console.error("Fetch translations error:", error);
       return rejectWithValue("Network error: Could not fetch translations");
+    }
+  }
+);
+
+/**
+ * Downloads a translated document from the backend API
+ * 
+ * This thunk initiates a file download for a completed translation
+ */
+export const downloadTranslation = createAsyncThunk(
+  "translation/downloadTranslation",
+  async (translationId: string, { rejectWithValue }) => {
+    try {
+      console.log(`Downloading translation ${translationId}`);
+      
+      // Initiate file download by redirecting to the download endpoint
+      window.location.href = `${API_BASE_URL}/api/translation/download/${translationId}`;
+      
+      return { success: true };
+    } catch (error) {
+      console.error("Download translation error:", error);
+      return rejectWithValue("Network error: Could not download translation");
     }
   }
 );
