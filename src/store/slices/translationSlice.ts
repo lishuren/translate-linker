@@ -1,19 +1,23 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 
-interface Translation {
+// Enhanced type definitions for the translation process
+export interface Translation {
   id: string;
   originalFileName: string;
   targetLanguage: string;
   status: "pending" | "processing" | "completed" | "failed";
   downloadUrl?: string;
   createdAt: string;
+  errorMessage?: string;
   processingDetails?: {
     engine: string;
     model: string;
     vectorStore: string;
     documentChunks: number;
     ragEnabled: boolean;
+    processingTime?: number;
+    totalTokens?: number;
   };
 }
 
@@ -24,6 +28,7 @@ interface TranslationState {
     targetLanguage: string;
     status: "idle" | "uploading" | "success" | "error";
     error: string | null;
+    progress?: number;
   };
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
@@ -36,6 +41,7 @@ const initialState: TranslationState = {
     targetLanguage: "",
     status: "idle",
     error: null,
+    progress: 0,
   },
   status: "idle",
   error: null,
@@ -105,6 +111,7 @@ const translationSlice = createSlice({
       state.currentUpload.file = action.payload;
       state.currentUpload.status = "idle";
       state.currentUpload.error = null;
+      state.currentUpload.progress = 0;
     },
     setTargetLanguage: (state, action: PayloadAction<string>) => {
       state.currentUpload.targetLanguage = action.payload;
@@ -115,11 +122,21 @@ const translationSlice = createSlice({
         targetLanguage: "",
         status: "idle",
         error: null,
+        progress: 0,
       };
     },
     clearError: (state) => {
       state.error = null;
       state.status = "idle";
+    },
+    updateTranslationProgress: (state, action: PayloadAction<{ id: string; progress: number }>) => {
+      const { id, progress } = action.payload;
+      const translation = state.translations.find(t => t.id === id);
+      if (translation) {
+        if (state.currentUpload.file && translation.originalFileName === state.currentUpload.file.name) {
+          state.currentUpload.progress = progress;
+        }
+      }
     },
   },
   extraReducers: (builder) => {
@@ -128,6 +145,7 @@ const translationSlice = createSlice({
       .addCase(uploadDocument.pending, (state) => {
         state.currentUpload.status = "uploading";
         state.currentUpload.error = null;
+        state.currentUpload.progress = 0;
       })
       .addCase(uploadDocument.fulfilled, (state, action: PayloadAction<Translation>) => {
         state.currentUpload.status = "success";
@@ -153,5 +171,5 @@ const translationSlice = createSlice({
   },
 });
 
-export const { setFile, setTargetLanguage, clearUpload, clearError } = translationSlice.actions;
+export const { setFile, setTargetLanguage, clearUpload, clearError, updateTranslationProgress } = translationSlice.actions;
 export default translationSlice.reducer;
