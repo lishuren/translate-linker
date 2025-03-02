@@ -8,6 +8,13 @@ interface Translation {
   status: "pending" | "processing" | "completed" | "failed";
   downloadUrl?: string;
   createdAt: string;
+  processingDetails?: {
+    engine: string;
+    model: string;
+    vectorStore: string;
+    documentChunks: number;
+    ragEnabled: boolean;
+  };
 }
 
 interface TranslationState {
@@ -45,7 +52,9 @@ export const uploadDocument = createAsyncThunk(
       formData.append("file", file);
       formData.append("targetLanguage", targetLanguage);
 
-      // This will be replaced with actual API call
+      console.log(`Uploading document "${file.name}" for translation to ${targetLanguage}`);
+      
+      // This will use our updated API that incorporates langchain
       const response = await fetch("/api/translation/upload", {
         method: "POST",
         body: formData,
@@ -57,8 +66,10 @@ export const uploadDocument = createAsyncThunk(
       }
 
       const data = await response.json();
+      console.log("Translation job created successfully:", data.translation);
       return data.translation;
     } catch (error) {
+      console.error("Upload document error:", error);
       return rejectWithValue("Network error: Could not upload document");
     }
   }
@@ -68,7 +79,7 @@ export const fetchTranslations = createAsyncThunk(
   "translation/fetchTranslations",
   async (_, { rejectWithValue }) => {
     try {
-      // This will be replaced with actual API call
+      console.log("Fetching translation history");
       const response = await fetch("/api/translation/history");
 
       if (!response.ok) {
@@ -77,8 +88,10 @@ export const fetchTranslations = createAsyncThunk(
       }
 
       const data = await response.json();
+      console.log(`Retrieved ${data.translations.length} translations from history`);
       return data.translations;
     } catch (error) {
+      console.error("Fetch translations error:", error);
       return rejectWithValue("Network error: Could not fetch translations");
     }
   }
