@@ -50,6 +50,13 @@ const initialState: TranslationState = {
   error: null,
 };
 
+// Update API endpoint URL based on environment
+// In development, it will connect to localhost:5000
+// In production, you would set this to your actual backend URL
+const API_BASE_URL = import.meta.env.DEV 
+  ? "http://localhost:5000" 
+  : "/api";
+
 export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
   async (
@@ -63,8 +70,8 @@ export const uploadDocument = createAsyncThunk(
 
       console.log(`Uploading document "${file.name}" for translation to ${targetLanguage}`);
       
-      // This will use our updated API that incorporates langchain
-      const response = await fetch("/api/translation/upload", {
+      // Use the Python backend API
+      const response = await fetch(`${API_BASE_URL}/api/translation/upload`, {
         method: "POST",
         body: formData,
       });
@@ -81,7 +88,7 @@ export const uploadDocument = createAsyncThunk(
       if (data.translation.status === "processing") {
         const pollInterval = setInterval(async () => {
           try {
-            const pollResponse = await fetch(`/api/translation/status/${data.translation.id}`);
+            const pollResponse = await fetch(`${API_BASE_URL}/api/translation/status/${data.translation.id}`);
             if (pollResponse.ok) {
               const pollData = await pollResponse.json();
               
@@ -94,6 +101,9 @@ export const uploadDocument = createAsyncThunk(
               // If completed or failed, stop polling
               if (pollData.status === "completed" || pollData.status === "failed") {
                 clearInterval(pollInterval);
+                
+                // Refresh translations list to get the latest status
+                dispatch(fetchTranslations());
               }
             }
           } catch (error) {
@@ -115,7 +125,7 @@ export const fetchTranslations = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log("Fetching translation history");
-      const response = await fetch("/api/translation/history");
+      const response = await fetch(`${API_BASE_URL}/api/translation/history`);
 
       if (!response.ok) {
         const errorData = await response.json();
