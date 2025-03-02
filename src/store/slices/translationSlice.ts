@@ -18,6 +18,9 @@ export interface Translation {
     ragEnabled: boolean;
     processingTime?: number;
     totalTokens?: number;
+    translationProvider?: string;
+    agentEnabled?: boolean;
+    confidenceScore?: number;
   };
 }
 
@@ -51,7 +54,7 @@ export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
   async (
     { file, targetLanguage }: { file: File; targetLanguage: string },
-    { rejectWithValue }
+    { rejectWithValue, dispatch }
   ) => {
     try {
       const formData = new FormData();
@@ -73,6 +76,32 @@ export const uploadDocument = createAsyncThunk(
 
       const data = await response.json();
       console.log("Translation job created successfully:", data.translation);
+      
+      // Set up progress polling if the job is processing
+      if (data.translation.status === "processing") {
+        const pollInterval = setInterval(async () => {
+          try {
+            const pollResponse = await fetch(`/api/translation/status/${data.translation.id}`);
+            if (pollResponse.ok) {
+              const pollData = await pollResponse.json();
+              
+              // Update progress
+              dispatch(updateTranslationProgress({ 
+                id: data.translation.id, 
+                progress: pollData.progress || 0 
+              }));
+              
+              // If completed or failed, stop polling
+              if (pollData.status === "completed" || pollData.status === "failed") {
+                clearInterval(pollInterval);
+              }
+            }
+          } catch (error) {
+            console.error("Error polling translation status:", error);
+          }
+        }, 2000); // Poll every 2 seconds
+      }
+      
       return data.translation;
     } catch (error) {
       console.error("Upload document error:", error);
