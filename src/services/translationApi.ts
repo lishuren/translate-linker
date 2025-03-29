@@ -5,6 +5,9 @@
  * This service provides methods to interact with the backend translation API
  * which uses Langchain, DeepSeek LLM, RAG, and a third-party translation API
  * for document translation.
+ * 
+ * All actual translation processing happens on the backend - this service
+ * only handles API communication.
  */
 
 // API base URL determined by environment

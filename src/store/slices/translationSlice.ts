@@ -1,5 +1,5 @@
-
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import * as translationApi from "../../services/translationApi";
 
 // Enhanced type definitions for the translation process
 export interface Translation {
@@ -50,13 +50,6 @@ const initialState: TranslationState = {
   error: null,
 };
 
-// API base URL determined by environment
-// In development, connect to localhost:5000
-// In production, use relative URL to the backend
-const API_BASE_URL = import.meta.env.DEV 
-  ? "http://localhost:5000" 
-  : "/api";
-
 /**
  * Uploads a document to the backend for translation
  * 
@@ -70,40 +63,17 @@ export const uploadDocument = createAsyncThunk(
     { rejectWithValue, dispatch }
   ) => {
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("targetLanguage", targetLanguage);
-
       console.log(`Uploading document "${file.name}" for translation to ${targetLanguage}`);
       
-      // Call the backend API endpoint
-      const response = await fetch(`${API_BASE_URL}/api/translation/upload`, {
-        method: "POST",
-        body: formData,
-        // No Content-Type header needed as browser sets it automatically with boundary for FormData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return rejectWithValue(errorData.message || "Failed to upload document");
-      }
-
-      const data = await response.json();
+      // Call the backend API endpoint through our service
+      const data = await translationApi.uploadDocument(file, targetLanguage);
       console.log("Translation job created successfully:", data.translation);
       
       // Set up progress polling if the job is processing
       if (data.translation.status === "processing") {
         const pollInterval = setInterval(async () => {
           try {
-            const pollResponse = await fetch(`${API_BASE_URL}/api/translation/status/${data.translation.id}`);
-            
-            if (!pollResponse.ok) {
-              console.error("Failed to poll translation status");
-              clearInterval(pollInterval);
-              return;
-            }
-            
-            const pollData = await pollResponse.json();
+            const pollData = await translationApi.checkTranslationStatus(data.translation.id);
             
             // Update progress
             dispatch(updateTranslationProgress({ 
@@ -142,14 +112,7 @@ export const fetchTranslations = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log("Fetching translation history");
-      const response = await fetch(`${API_BASE_URL}/api/translation/history`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return rejectWithValue(errorData.message || "Failed to fetch translations");
-      }
-
-      const data = await response.json();
+      const data = await translationApi.fetchTranslationHistory();
       console.log(`Retrieved ${data.translations.length} translations from history`);
       return data.translations;
     } catch (error) {
@@ -171,7 +134,7 @@ export const downloadTranslation = createAsyncThunk(
       console.log(`Downloading translation ${translationId}`);
       
       // Initiate file download by redirecting to the download endpoint
-      window.location.href = `${API_BASE_URL}/api/translation/download/${translationId}`;
+      window.location.href = translationApi.getDownloadUrl(translationId);
       
       return { success: true };
     } catch (error) {

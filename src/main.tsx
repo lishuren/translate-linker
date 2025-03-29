@@ -6,14 +6,23 @@ import { store, persistor } from './store'
 import App from './App.tsx'
 import './index.css'
 
-// Create an integration guide comment
 /**
  * Frontend-Backend Integration Guide
  * 
- * This application integrates with a FastAPI backend that provides:
- * 1. Document translation using Langchain, DeepSeek LLM, and RAG
- * 2. Translation job status tracking and progress updates
- * 3. Translated document storage and retrieval
+ * This application uses a clear separation of concerns:
+ * 
+ * FRONTEND:
+ * - Handles UI, file selection, and displays translation progress
+ * - Communicates with backend through RESTful API calls
+ * - No language processing is done on the frontend
+ * 
+ * BACKEND (FastAPI Python):
+ * - Handles all document processing and translation using:
+ *   - Langchain for document handling and processing
+ *   - DeepSeek LLM for translation and understanding
+ *   - RAG (Retrieval Augmented Generation) for improved quality
+ *   - Third-party translation APIs for verification
+ *   - FAISS vector store for document embeddings
  * 
  * The backend API is expected to be running at:
  * - Development: http://localhost:5000
@@ -24,6 +33,8 @@ import './index.css'
  * - GET /api/translation/status/:id - Check translation status
  * - GET /api/translation/history - Get all translations
  * - GET /api/translation/download/:id - Download translated document
+ * 
+ * See INTEGRATION.md for detailed integration instructions.
  */
 
 createRoot(document.getElementById("root")!).render(
