@@ -3,8 +3,8 @@
  * Translation API Service
  * 
  * This service provides methods to interact with the backend translation API
- * which uses Langchain, DeepSeek LLM, RAG, and a third-party translation API
- * for document translation.
+ * which uses Langchain with multiple LLM providers (OpenAI/ChatGPT, Anthropic/Claude,
+ * Google/Vertex AI/Grok, Groq, Cohere, HuggingFace, DeepSeek) for document translation.
  * 
  * All actual translation processing happens on the backend - this service
  * only handles API communication.
@@ -22,12 +22,20 @@ const API_BASE_URL = import.meta.env.DEV
  * 
  * @param file - The document file to be translated
  * @param targetLanguage - The target language code (e.g., 'es', 'fr')
+ * @param llmProvider - Optional LLM provider to use (e.g., 'openai', 'anthropic', 'google', 'groq', 'cohere', 'huggingface', 'deepseek')
  * @returns The created translation job data
  */
-export const uploadDocument = async (file: File, targetLanguage: string) => {
+export const uploadDocument = async (
+  file: File, 
+  targetLanguage: string, 
+  llmProvider?: string
+) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("targetLanguage", targetLanguage);
+  if (llmProvider) {
+    formData.append("llmProvider", llmProvider);
+  }
 
   const response = await fetch(`${API_BASE_URL}/api/translation/upload`, {
     method: "POST",

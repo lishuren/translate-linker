@@ -1,3 +1,4 @@
+
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import * as translationApi from "../../services/translationApi";
 
@@ -29,6 +30,7 @@ interface TranslationState {
   currentUpload: {
     file: File | null;
     targetLanguage: string;
+    llmProvider: string;
     status: "idle" | "uploading" | "success" | "error";
     error: string | null;
     progress?: number;
@@ -42,6 +44,7 @@ const initialState: TranslationState = {
   currentUpload: {
     file: null,
     targetLanguage: "",
+    llmProvider: "",
     status: "idle",
     error: null,
     progress: 0,
@@ -53,20 +56,20 @@ const initialState: TranslationState = {
 /**
  * Uploads a document to the backend for translation
  * 
- * This thunk sends the file and target language to the backend API,
- * which processes it using Langchain, DeepSeek LLM, and RAG
+ * This thunk sends the file, target language, and LLM provider to the backend API,
+ * which processes it using Langchain with the selected LLM provider
  */
 export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
   async (
-    { file, targetLanguage }: { file: File; targetLanguage: string },
+    { file, targetLanguage, llmProvider }: { file: File; targetLanguage: string; llmProvider?: string },
     { rejectWithValue, dispatch }
   ) => {
     try {
-      console.log(`Uploading document "${file.name}" for translation to ${targetLanguage}`);
+      console.log(`Uploading document "${file.name}" for translation to ${targetLanguage} using ${llmProvider || 'default'} LLM`);
       
       // Call the backend API endpoint through our service
-      const data = await translationApi.uploadDocument(file, targetLanguage);
+      const data = await translationApi.uploadDocument(file, targetLanguage, llmProvider);
       console.log("Translation job created successfully:", data.translation);
       
       // Set up progress polling if the job is processing
@@ -157,10 +160,14 @@ const translationSlice = createSlice({
     setTargetLanguage: (state, action: PayloadAction<string>) => {
       state.currentUpload.targetLanguage = action.payload;
     },
+    setLlmProvider: (state, action: PayloadAction<string>) => {
+      state.currentUpload.llmProvider = action.payload;
+    },
     clearUpload: (state) => {
       state.currentUpload = {
         file: null,
         targetLanguage: "",
+        llmProvider: "",
         status: "idle",
         error: null,
         progress: 0,
@@ -212,5 +219,13 @@ const translationSlice = createSlice({
   },
 });
 
-export const { setFile, setTargetLanguage, clearUpload, clearError, updateTranslationProgress } = translationSlice.actions;
+export const { 
+  setFile, 
+  setTargetLanguage, 
+  setLlmProvider,
+  clearUpload, 
+  clearError, 
+  updateTranslationProgress 
+} = translationSlice.actions;
+
 export default translationSlice.reducer;

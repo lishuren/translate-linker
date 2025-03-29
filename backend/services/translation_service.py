@@ -10,7 +10,12 @@ import uuid
 # LangChain imports
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI  # For DeepSeek LLM
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_google_vertexai import ChatVertexAI
+from langchain_groq import ChatGroq
+from langchain_cohere import ChatCohere
+from langchain_huggingface import ChatHuggingFace
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -28,7 +33,7 @@ translations_db = {}
 progress_tracker = {}
 
 class TranslationService:
-    """Service for handling document translations using LangChain"""
+    """Service for handling document translations using LangChain with multiple LLM providers"""
     
     def __init__(self):
         self.file_service = FileService()
@@ -36,16 +41,71 @@ class TranslationService:
         self.chunk_size = int(os.getenv("CHUNK_SIZE", 1000))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", 200))
         self.vector_store_path = os.getenv("VECTOR_STORE_PATH", "./vector_stores")
+        self.default_model = os.getenv("DEFAULT_LLM_MODEL", "openai")
         os.makedirs(self.vector_store_path, exist_ok=True)
+    
+    def get_llm(self, provider: str = None):
+        """
+        Get LLM instance based on provider
+        Supports: openai, anthropic, google, groq, cohere, huggingface, deepseek
+        """
+        provider = provider or self.default_model
+        provider = provider.lower()
+        
+        if provider == "openai" or provider == "chatgpt":
+            return ChatOpenAI(
+                model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
+        elif provider == "anthropic" or provider == "claude":
+            return ChatAnthropic(
+                model_name=os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-sonnet-20240229"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
+        elif provider == "google" or provider == "vertex" or provider == "grok":
+            return ChatVertexAI(
+                model_name=os.getenv("GOOGLE_MODEL_NAME", "gemini-pro"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
+        elif provider == "groq":
+            return ChatGroq(
+                model_name=os.getenv("GROQ_MODEL_NAME", "llama-3-70b-8192"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
+        elif provider == "cohere":
+            return ChatCohere(
+                model=os.getenv("COHERE_MODEL_NAME", "command"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
+        elif provider == "huggingface":
+            return ChatHuggingFace(
+                model_id=os.getenv("HUGGINGFACE_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
+        elif provider == "deepseek":
+            # Using LangChain's OpenAI interface with DeepSeek endpoint
+            return ChatOpenAI(
+                model=os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                openai_api_base=os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"),
+                openai_api_key=os.getenv("DEEPSEEK_API_KEY")
+            )
+        else:
+            # Default to OpenAI
+            return ChatOpenAI(
+                model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+            )
     
     async def process_translation(
         self, 
         translation_id: str, 
         file_path: str, 
         target_language: str,
-        original_filename: str
+        original_filename: str,
+        llm_provider: str = None
     ) -> None:
-        """Process a document translation using LangChain and DeepSeek LLM"""
+        """Process a document translation using LangChain and selected LLM provider"""
         start_time = time.time()
         
         try:
@@ -82,12 +142,14 @@ class TranslationService:
             store_dir = os.path.join(self.vector_store_path, translation_id)
             vector_store = await self._create_vector_store(docs, store_dir)
             
-            # 5. Set up the translation agent with DeepSeek LLM
+            # 5. Set up the translation agent with the selected LLM
             await self._update_progress(translation_id, 0.6)  # 60%
+            llm = self.get_llm(llm_provider)
             translation_agent = await self._setup_translation_agent(
                 source_language, 
                 target_language,
-                vector_store
+                vector_store,
+                llm
             )
             
             # 6. Process translation
@@ -127,7 +189,7 @@ class TranslationService:
             # 10. Update translation record
             processing_details = ProcessingDetails(
                 engine="langchain",
-                model="deepseek-coder",
+                model=llm_provider or self.default_model,
                 vectorStore="faiss",
                 documentChunks=len(docs),
                 ragEnabled=True,
@@ -158,6 +220,7 @@ class TranslationService:
                 "source_language": source_language,
                 "target_language": target_language,
                 "original_filename": original_filename,
+                "llm_provider": llm_provider or self.default_model,
                 "chunk_count": len(docs),
                 "processing_time": processing_time,
                 "confidence_score": confidence_score,
@@ -185,39 +248,10 @@ class TranslationService:
                 "timestamp": datetime.now().isoformat()
             })
     
-    async def _update_progress(self, translation_id: str, progress: float) -> None:
-        """Update the progress of a translation job"""
-        progress_tracker[translation_id] = progress
+    # ... keep existing code (methods like _update_progress, _detect_language, etc.)
     
-    def _detect_language(self, text: str) -> str:
-        """Detect the language of the input text (mock implementation)"""
-        # This would be replaced with a real language detection service
-        # For now, we'll just assume it's English
-        return "english"
-    
-    async def _create_vector_store(self, docs: List[Document], store_dir: str) -> Any:
-        """Create a vector store from documents"""
-        # In a real implementation, this would use the actual DeepSeek embeddings
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
-        
-        # Create FAISS vector store
-        vector_store = FAISS.from_documents(docs, embeddings)
-        
-        # Save vector store for future use
-        vector_store.save_local(store_dir)
-        
-        return vector_store
-    
-    async def _setup_translation_agent(self, source_language: str, target_language: str, vector_store: Any) -> Any:
-        """Set up the LangChain agent for translation"""
-        # In a real implementation, this would use the actual DeepSeek API
-        llm = ChatOpenAI(
-            model="gpt-3.5-turbo",  # Replace with DeepSeek model in production
-            temperature=0.1
-        )
-        
+    async def _setup_translation_agent(self, source_language: str, target_language: str, vector_store: Any, llm: Any) -> Any:
+        """Set up the LangChain agent for translation using the provided LLM"""
         # Create a translation chain
         translation_prompt = ChatPromptTemplate.from_template(
             """You are a professional translator who specializes in translating from {source_language} to {target_language}.
@@ -260,95 +294,4 @@ class TranslationService:
         
         return agent
     
-    async def _translate_with_agent(
-        self, 
-        agent: Any, 
-        docs: List[Document], 
-        source_language: str,
-        target_language: str
-    ) -> List[str]:
-        """Translate document chunks using the agent"""
-        translated_chunks = []
-        
-        for i, doc in enumerate(docs):
-            # In a real implementation, we would use the agent to translate each chunk
-            # For this demo, we'll simulate the translation
-            try:
-                # This would be replaced with actual agent calls
-                # translated_chunk = agent.run(f"Translate this text from {source_language} to {target_language}: {doc.page_content}")
-                
-                # Simulate translation for now
-                translated_chunk = f"[Translated content {i+1} in {target_language}]: {doc.page_content[:50]}..."
-                translated_chunks.append(translated_chunk)
-                
-                # Update progress proportionally
-                progress = 0.7 + (0.1 * (i / len(docs)))
-                await self._update_progress(docs[0].metadata.get('translation_id', 'unknown'), progress)
-                
-            except Exception as e:
-                print(f"Error translating chunk {i}: {str(e)}")
-                # Add a placeholder for the failed chunk
-                translated_chunks.append(f"[Translation error for chunk {i+1}]")
-        
-        return translated_chunks
-    
-    def _calculate_confidence_score(self, source_language: str, target_language: str, chunk_count: int) -> float:
-        """Calculate a confidence score for the translation"""
-        # Base score
-        score = 0.85
-        
-        # Adjust for language complexity
-        complex_pairs = [
-            ('japanese', 'english'),
-            ('chinese', 'english'),
-            ('arabic', 'english'),
-            ('english', 'japanese'),
-            ('english', 'chinese'),
-            ('english', 'arabic')
-        ]
-        
-        lang_pair = (source_language.lower(), target_language.lower())
-        if lang_pair in complex_pairs:
-            score -= 0.1  # Reduce score for complex language pairs
-        
-        # Adjust for document length
-        if chunk_count > 20:
-            score -= 0.05  # Longer documents have more room for error
-        
-        return max(0.0, min(1.0, score))  # Ensure score is between 0 and 1
-    
-    async def get_translation_status(self, translation_id: str) -> Optional[Dict]:
-        """Get the status of a translation job"""
-        if translation_id not in translations_db:
-            return None
-        
-        translation = translations_db[translation_id]
-        progress = progress_tracker.get(translation_id, 0.0)
-        
-        return {
-            "id": translation.id,
-            "status": translation.status,
-            "progress": progress,
-            "downloadUrl": translation.downloadUrl,
-            "errorMessage": translation.errorMessage
-        }
-    
-    async def get_translation_file(self, translation_id: str) -> Optional[str]:
-        """Get the path to a translated file"""
-        if translation_id not in translations_db:
-            return None
-        
-        translation = translations_db[translation_id]
-        if translation.status != TranslationStatus.COMPLETED:
-            return None
-        
-        # Find the translation file
-        for filename in os.listdir(FileService.TRANSLATIONS_DIR):
-            if filename.startswith(f"{translation_id}_"):
-                return os.path.join(FileService.TRANSLATIONS_DIR, filename)
-        
-        return None
-    
-    async def get_all_translations(self) -> List[Dict]:
-        """Get all translations"""
-        return [translation.dict() for translation in translations_db.values()]
+    # ... keep existing code (all other existing methods)

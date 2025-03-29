@@ -1,4 +1,3 @@
-
 import os
 import uuid
 import time
@@ -26,7 +25,7 @@ load_dotenv()
 
 app = FastAPI(
     title="Translation API",
-    description="API for translating documents using LangChain, DeepSeek LLM, and RAG",
+    description="API for translating documents using LangChain with multiple LLM providers",
     version="1.0.0"
 )
 
@@ -51,7 +50,8 @@ os.makedirs("translations", exist_ok=True)
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    targetLanguage: str = Form(...)
+    targetLanguage: str = Form(...),
+    llmProvider: Optional[str] = Form(None)
 ):
     try:
         # Generate unique ID for this translation
@@ -69,13 +69,14 @@ async def upload_document(
             createdAt=datetime.now().isoformat()
         )
         
-        # Start translation in background
+        # Start translation in background with specified LLM provider
         background_tasks.add_task(
             translation_service.process_translation,
             translation_id=translation_id,
             file_path=file_path,
             target_language=targetLanguage,
-            original_filename=file.filename
+            original_filename=file.filename,
+            llm_provider=llmProvider
         )
         
         return {"translation": translation.dict()}
