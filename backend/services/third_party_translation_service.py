@@ -10,15 +10,41 @@ class ThirdPartyTranslationService:
     
     def __init__(self):
         self.api_key = os.getenv("TRANSLATION_API_KEY", "mock-api-key")
+        # Import only when needed to avoid circular imports
+        from services.web_translation_service import WebTranslationService
+        self.web_translation_service = WebTranslationService()
     
-    async def enhance_translation(self, translated_text: str, source_language: str, target_language: str) -> str:
+    async def enhance_translation(self, translated_text: str, source_language: str, target_language: str, web_service: Optional[str] = None) -> str:
         """
         Send translation to a third-party API for enhancement/verification
         
         In a real implementation, this would call an actual translation API like
         DeepL, Google Translate, Amazon Translate, etc.
+        
+        Args:
+            translated_text: The already translated text to enhance
+            source_language: Source language code
+            target_language: Target language code
+            web_service: Optional web translation service to use
+            
+        Returns:
+            Enhanced translation
         """
-        print(f"Sending translation to third-party API for enhancement ({source_language} -> {target_language})")
+        print(f"Enhancing translation from {source_language} to {target_language}")
+        
+        # If web_service is specified, use the web translation service
+        if web_service and web_service != "none":
+            print(f"Using web translation service: {web_service}")
+            enhanced_text = await self.web_translation_service.translate_text(
+                translated_text,
+                source_language,
+                target_language,
+                web_service
+            )
+            return enhanced_text
+        
+        # Otherwise, fallback to the original implementation (for backward compatibility)
+        print(f"Using default translation enhancement")
         
         # Simulate API call with delay proportional to text length
         delay = min(2.0, 0.5 + (len(translated_text) / 10000))

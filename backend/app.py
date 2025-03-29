@@ -1,3 +1,4 @@
+
 import os
 import uuid
 import time
@@ -12,6 +13,7 @@ from dotenv import load_dotenv
 # Local imports
 from services.translation_service import TranslationService
 from services.file_service import FileService
+from services.user_settings_service import UserSettingsService
 from models.translation import (
     Translation, 
     TranslationStatus, 
@@ -41,6 +43,7 @@ app.add_middleware(
 # Initialize services
 file_service = FileService()
 translation_service = TranslationService()
+user_settings_service = UserSettingsService()
 
 # Create necessary directories
 os.makedirs("uploads", exist_ok=True)
@@ -51,9 +54,18 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     targetLanguage: str = Form(...),
-    llmProvider: Optional[str] = Form(None)
+    llmProvider: Optional[str] = Form(None),
+    userId: Optional[str] = Form(None)
 ):
     try:
+        # Check if user is allowed to select model
+        is_allowed = await translation_service.is_model_selection_allowed(userId)
+        
+        # If user selection is not allowed, ignore provided LLM provider
+        if not is_allowed and llmProvider:
+            # Get the user's configured provider instead
+            llmProvider = user_settings_service.get_user_llm_provider(userId)
+            
         # Generate unique ID for this translation
         translation_id = str(uuid.uuid4())
         
@@ -76,7 +88,8 @@ async def upload_document(
             file_path=file_path,
             target_language=targetLanguage,
             original_filename=file.filename,
-            llm_provider=llmProvider
+            llm_provider=llmProvider,
+            user_id=userId
         )
         
         return {"translation": translation.dict()}
@@ -116,6 +129,24 @@ async def get_translation_history():
         return {"translations": translations}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving translation history: {str(e)}")
+
+@app.get("/api/config/model-selection-allowed")
+async def is_model_selection_allowed(userId: Optional[str] = Query(None)):
+    """Check if a user is allowed to select LLM models"""
+    try:
+        is_allowed = await translation_service.is_model_selection_allowed(userId)
+        return {"allowed": is_allowed}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking model selection permission: {str(e)}")
+
+@app.get("/api/config/available-web-translation-services")
+async def get_available_web_translation_services():
+    """Get available web translation services"""
+    try:
+        services = await translation_service.get_available_web_translation_services()
+        return {"services": services}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving web translation services: {str(e)}")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))

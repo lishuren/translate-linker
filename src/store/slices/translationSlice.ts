@@ -31,12 +31,18 @@ interface TranslationState {
     file: File | null;
     targetLanguage: string;
     llmProvider: string;
+    userId?: string;
     status: "idle" | "uploading" | "success" | "error";
     error: string | null;
     progress?: number;
   };
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
+  config: {
+    isModelSelectionAllowed: boolean;
+    checkedModelSelection: boolean;
+    availableWebTranslationServices: string[];
+  };
 }
 
 const initialState: TranslationState = {
@@ -45,13 +51,51 @@ const initialState: TranslationState = {
     file: null,
     targetLanguage: "",
     llmProvider: "",
+    userId: undefined,
     status: "idle",
     error: null,
     progress: 0,
   },
   status: "idle",
   error: null,
+  config: {
+    isModelSelectionAllowed: true, // Default to true for backward compatibility
+    checkedModelSelection: false,
+    availableWebTranslationServices: ["none"],
+  }
 };
+
+/**
+ * Checks if model selection is allowed for the current user
+ */
+export const checkModelSelectionPermission = createAsyncThunk(
+  "translation/checkModelSelectionPermission",
+  async (userId?: string, { rejectWithValue }) => {
+    try {
+      const isAllowed = await translationApi.isModelSelectionAllowed(userId);
+      return { isAllowed, userId };
+    } catch (error) {
+      console.error("Check model selection permission error:", error);
+      return rejectWithValue("Network error: Could not check model selection permission");
+    }
+  }
+);
+
+/**
+ * Fetches available web translation services
+ */
+export const fetchWebTranslationServices = createAsyncThunk(
+  "translation/fetchWebTranslationServices",
+  async (_, { rejectWithValue }) => {
+    try {
+      const services = await translationApi.getAvailableWebTranslationServices();
+      return { services };
+    } catch (error) {
+      console.error("Fetch web translation services error:", error);
+      return rejectWithValue("Network error: Could not fetch web translation services");
+    }
+  }
+);
 
 /**
  * Uploads a document to the backend for translation
@@ -62,14 +106,24 @@ const initialState: TranslationState = {
 export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
   async (
-    { file, targetLanguage, llmProvider }: { file: File; targetLanguage: string; llmProvider?: string },
-    { rejectWithValue, dispatch }
+    { 
+      file, 
+      targetLanguage, 
+      llmProvider, 
+      userId 
+    }: { 
+      file: File; 
+      targetLanguage: string; 
+      llmProvider?: string; 
+      userId?: string;
+    },
+    { rejectWithValue, dispatch, getState }
   ) => {
     try {
       console.log(`Uploading document "${file.name}" for translation to ${targetLanguage} using ${llmProvider || 'default'} LLM`);
       
       // Call the backend API endpoint through our service
-      const data = await translationApi.uploadDocument(file, targetLanguage, llmProvider);
+      const data = await translationApi.uploadDocument(file, targetLanguage, llmProvider, userId);
       console.log("Translation job created successfully:", data.translation);
       
       // Set up progress polling if the job is processing
@@ -163,11 +217,15 @@ const translationSlice = createSlice({
     setLlmProvider: (state, action: PayloadAction<string>) => {
       state.currentUpload.llmProvider = action.payload;
     },
+    setUserId: (state, action: PayloadAction<string | undefined>) => {
+      state.currentUpload.userId = action.payload;
+    },
     clearUpload: (state) => {
       state.currentUpload = {
         file: null,
         targetLanguage: "",
         llmProvider: "",
+        userId: state.currentUpload.userId, // Preserve user ID
         status: "idle",
         error: null,
         progress: 0,
@@ -189,6 +247,28 @@ const translationSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Check model selection permission
+      .addCase(checkModelSelectionPermission.fulfilled, (state, action) => {
+        state.config.isModelSelectionAllowed = action.payload.isAllowed;
+        state.config.checkedModelSelection = true;
+        // If user ID was provided, store it for future requests
+        if (action.payload.userId) {
+          state.currentUpload.userId = action.payload.userId;
+        }
+      })
+      .addCase(checkModelSelectionPermission.rejected, (state) => {
+        state.config.isModelSelectionAllowed = true; // Default to allowing selection
+        state.config.checkedModelSelection = true;
+      })
+      
+      // Fetch web translation services
+      .addCase(fetchWebTranslationServices.fulfilled, (state, action) => {
+        state.config.availableWebTranslationServices = action.payload.services;
+      })
+      .addCase(fetchWebTranslationServices.rejected, (state) => {
+        state.config.availableWebTranslationServices = ["none"]; // Default if fetch fails
+      })
+      
       // Upload Document
       .addCase(uploadDocument.pending, (state) => {
         state.currentUpload.status = "uploading";
@@ -223,6 +303,7 @@ export const {
   setFile, 
   setTargetLanguage, 
   setLlmProvider,
+  setUserId,
   clearUpload, 
   clearError, 
   updateTranslationProgress 

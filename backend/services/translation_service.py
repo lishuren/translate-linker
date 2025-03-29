@@ -27,6 +27,8 @@ from langchain.agents import initialize_agent, Tool, AgentType
 from models.translation import Translation, TranslationStatus, ProcessingDetails
 from services.file_service import FileService
 from services.third_party_translation_service import ThirdPartyTranslationService
+from services.user_settings_service import UserSettingsService
+from services.web_translation_service import WebTranslationService
 
 # Status and metadata storage (would be a database in production)
 translations_db = {}
@@ -38,17 +40,26 @@ class TranslationService:
     def __init__(self):
         self.file_service = FileService()
         self.third_party_service = ThirdPartyTranslationService()
+        self.user_settings_service = UserSettingsService()
+        self.web_translation_service = WebTranslationService()
         self.chunk_size = int(os.getenv("CHUNK_SIZE", 1000))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", 200))
         self.vector_store_path = os.getenv("VECTOR_STORE_PATH", "./vector_stores")
         self.default_model = os.getenv("DEFAULT_LLM_MODEL", "openai")
+        self.allow_user_model_selection = os.getenv("ALLOW_USER_MODEL_SELECTION", "true").lower() == "true"
         os.makedirs(self.vector_store_path, exist_ok=True)
     
-    def get_llm(self, provider: str = None):
+    def get_llm(self, provider: str = None, user_id: Optional[str] = None):
         """
-        Get LLM instance based on provider
+        Get LLM instance based on provider and user settings
         Supports: openai, anthropic, google, groq, cohere, huggingface, deepseek
         """
+        # If user_id is provided and model selection is controlled by backend, 
+        # override the provided provider with the user's configured provider
+        if user_id and not self.user_settings_service.is_model_selection_allowed(user_id):
+            provider = self.user_settings_service.get_user_llm_provider(user_id)
+        
+        # If no provider specified, use default
         provider = provider or self.default_model
         provider = provider.lower()
         
@@ -103,7 +114,8 @@ class TranslationService:
         file_path: str, 
         target_language: str,
         original_filename: str,
-        llm_provider: str = None
+        llm_provider: str = None,
+        user_id: str = None
     ) -> None:
         """Process a document translation using LangChain and selected LLM provider"""
         start_time = time.time()
@@ -142,9 +154,9 @@ class TranslationService:
             store_dir = os.path.join(self.vector_store_path, translation_id)
             vector_store = await self._create_vector_store(docs, store_dir)
             
-            # 5. Set up the translation agent with the selected LLM
+            # 5. Set up the translation agent with the selected LLM, respecting user settings
             await self._update_progress(translation_id, 0.6)  # 60%
-            llm = self.get_llm(llm_provider)
+            llm = self.get_llm(llm_provider, user_id)
             translation_agent = await self._setup_translation_agent(
                 source_language, 
                 target_language,
@@ -161,15 +173,21 @@ class TranslationService:
                 target_language
             )
             
-            # 7. Call third-party API for verification/improvement
+            # 7. Get web translation service based on user settings
+            web_translation_service = None
+            if user_id:
+                web_translation_service = self.user_settings_service.get_web_translation_service(user_id)
+            
+            # 8. Call third-party API for verification/improvement, using web translation if configured
             await self._update_progress(translation_id, 0.8)  # 80%
             final_translation = await self.third_party_service.enhance_translation(
                 "\n\n".join(translated_chunks),
                 source_language,
-                target_language
+                target_language,
+                web_translation_service
             )
             
-            # 8. Save the translated document
+            # 9. Save the translated document
             await self._update_progress(translation_id, 0.9)  # 90%
             output_path = await self.file_service.save_translation(
                 translation_id, 
@@ -177,7 +195,7 @@ class TranslationService:
                 original_filename
             )
             
-            # 9. Calculate processing stats
+            # 10. Calculate processing stats
             processing_time = time.time() - start_time
             token_estimate = len(document_text) / 4  # Rough estimate
             confidence_score = self._calculate_confidence_score(
@@ -186,7 +204,12 @@ class TranslationService:
                 len(docs)
             )
             
-            # 10. Update translation record
+            # Determine which translation provider was used
+            translation_provider = "third-party-api"
+            if web_translation_service and web_translation_service != "none":
+                translation_provider = web_translation_service
+            
+            # 11. Update translation record
             processing_details = ProcessingDetails(
                 engine="langchain",
                 model=llm_provider or self.default_model,
@@ -195,7 +218,7 @@ class TranslationService:
                 ragEnabled=True,
                 processingTime=processing_time,
                 totalTokens=int(token_estimate),
-                translationProvider="third-party-api",
+                translationProvider=translation_provider,
                 agentEnabled=True,
                 confidenceScore=confidence_score
             )
@@ -221,6 +244,7 @@ class TranslationService:
                 "target_language": target_language,
                 "original_filename": original_filename,
                 "llm_provider": llm_provider or self.default_model,
+                "web_translation_service": web_translation_service,
                 "chunk_count": len(docs),
                 "processing_time": processing_time,
                 "confidence_score": confidence_score,
@@ -295,3 +319,24 @@ class TranslationService:
         return agent
     
     # ... keep existing code (all other existing methods)
+    
+    async def is_model_selection_allowed(self, user_id: Optional[str] = None) -> bool:
+        """Check if the user is allowed to select LLM models"""
+        if user_id:
+            return self.user_settings_service.is_model_selection_allowed(user_id)
+        return self.allow_user_model_selection
+    
+    async def get_available_web_translation_services(self) -> List[str]:
+        """Get a list of available web translation services"""
+        services = ["none"]
+        
+        if os.getenv("GOOGLE_TRANSLATE_API_KEY"):
+            services.append("google")
+            
+        if os.getenv("MICROSOFT_TRANSLATOR_API_KEY"):
+            services.append("microsoft")
+            
+        if os.getenv("DEEPL_API_KEY"):
+            services.append("deepl")
+            
+        return services
