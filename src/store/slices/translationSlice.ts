@@ -1,4 +1,3 @@
-
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import * as translationApi from "../../services/translationApi";
 
@@ -70,7 +69,7 @@ const initialState: TranslationState = {
  */
 export const checkModelSelectionPermission = createAsyncThunk(
   "translation/checkModelSelectionPermission",
-  async (userId?: string, { rejectWithValue }) => {
+  async (userId: string | undefined, { rejectWithValue }) => {
     try {
       const isAllowed = await translationApi.isModelSelectionAllowed(userId);
       return { isAllowed, userId };

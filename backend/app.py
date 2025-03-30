@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from services.translation_service import TranslationService
 from services.file_service import FileService
 from services.user_settings_service import UserSettingsService
+from services.global_config_service import GlobalConfigService
 from models.translation import (
     Translation, 
     TranslationStatus, 
@@ -21,6 +22,9 @@ from models.translation import (
     TranslationResponse,
     TranslationStatusResponse
 )
+
+# Import TMX router
+from app_tmx import tmx_router
 
 # Load environment variables
 load_dotenv()
@@ -44,10 +48,17 @@ app.add_middleware(
 file_service = FileService()
 translation_service = TranslationService()
 user_settings_service = UserSettingsService()
+global_config = GlobalConfigService()
+
+# Include TMX router
+app.include_router(tmx_router)
 
 # Create necessary directories
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("translations", exist_ok=True)
+os.makedirs("tmx_files", exist_ok=True)
+os.makedirs("vector_stores", exist_ok=True)
+os.makedirs("config", exist_ok=True)
 
 @app.post("/api/translation/upload", response_model=TranslationResponse)
 async def upload_document(
@@ -81,16 +92,35 @@ async def upload_document(
             createdAt=datetime.now().isoformat()
         )
         
-        # Start translation in background with specified LLM provider
-        background_tasks.add_task(
-            translation_service.process_translation,
-            translation_id=translation_id,
-            file_path=file_path,
-            target_language=targetLanguage,
-            original_filename=file.filename,
-            llm_provider=llmProvider,
-            user_id=userId
-        )
+        # Check if RAG service should be used (based on global config)
+        use_rag = global_config.get_config().get('translation_settings', {}).get('rag_enabled', True)
+        
+        if use_rag:
+            # Import here to avoid circular imports
+            from services.rag_translation_service import RAGTranslationService
+            rag_service = RAGTranslationService()
+            
+            # Start translation in background with RAG
+            background_tasks.add_task(
+                rag_service.process_translation_with_rag,
+                translation_id=translation_id,
+                file_path=file_path,
+                target_language=targetLanguage,
+                original_filename=file.filename,
+                llm_provider=llmProvider,
+                user_id=userId
+            )
+        else:
+            # Use the standard translation service
+            background_tasks.add_task(
+                translation_service.process_translation,
+                translation_id=translation_id,
+                file_path=file_path,
+                target_language=targetLanguage,
+                original_filename=file.filename,
+                llm_provider=llmProvider,
+                user_id=userId
+            )
         
         return {"translation": translation.dict()}
     
@@ -147,6 +177,27 @@ async def get_available_web_translation_services():
         return {"services": services}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving web translation services: {str(e)}")
+
+@app.get("/api/config/system-info")
+async def get_system_info():
+    """Get system configuration information"""
+    try:
+        config = global_config.get_config(reload=True)
+        return {
+            "config": {
+                "llm_settings": {
+                    "default_provider": config.get("llm_settings", {}).get("default_provider", "openai"),
+                    "available_providers": list(config.get("llm_settings", {}).get("providers", {}).keys())
+                },
+                "translation_settings": {
+                    "default_web_service": config.get("translation_settings", {}).get("default_service", "none"),
+                    "rag_enabled": config.get("translation_settings", {}).get("rag_enabled", True)
+                },
+                "system_version": "1.0.0"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
