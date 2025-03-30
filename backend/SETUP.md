@@ -7,7 +7,7 @@ This document provides instructions for setting up the LingoAIO backend with RAG
 
 - Python 3.9 or later
 - pip package manager
-- SQLite/PostgreSQL/MySQL (optional, for persistent storage)
+- SQLite (included with the project)
 - 4GB+ RAM (recommended for embedding models)
 
 ## Installation Steps
@@ -53,14 +53,12 @@ Edit the `.env` file to set your API keys and configuration:
 
 ### 4. Initialize the Database
 
-```bash
-python -c "from models.database import init_db; init_db()"
-```
+The SQLite database will be automatically initialized when you start the server. The default user (username: tmxer, password: abcd1234) will be created automatically.
 
 ### 5. Create Required Directories
 
 ```bash
-mkdir -p vector_stores tmx_files config translations uploads
+mkdir -p vector_stores tmx_files config translations uploads data/chroma
 ```
 
 ### 6. Start the Server
@@ -71,6 +69,18 @@ uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 
 The API will be available at http://localhost:5000
 
+## Authentication
+
+The system uses SQLite for user authentication with the following features:
+
+- Default user: username=tmxer, password=abcd1234
+- Email-type usernames (containing @) have session-expiring passwords
+- Regular usernames have non-expiring passwords
+- Authentication endpoints:
+  - POST /api/auth/login - Log in with username/password
+  - POST /api/auth/logout - Log out and invalidate token
+  - GET /api/auth/me - Get current user information
+
 ## Using Translation Memory eXchange (TMX)
 
 ### Importing TMX Files
@@ -78,12 +88,21 @@ The API will be available at http://localhost:5000
 To import existing translation memories, use the `/api/tmx/upload` endpoint:
 
 ```bash
-curl -X POST -F "file=@your_file.tmx" http://localhost:5000/api/tmx/upload
+curl -X POST -F "file=@your_file.tmx" -H "Authorization: Bearer YOUR_TOKEN" http://localhost:5000/api/tmx/upload
 ```
 
 ### Exporting Translations as TMX
 
 Use the `/api/translation/{translation_id}/export-tmx` endpoint to export a completed translation as a TMX file.
+
+## ChromaDB for RAG
+
+The system uses ChromaDB for translation memory and RAG:
+
+- Each user has their own ChromaDB collection
+- Translation data is automatically added to the user's RAG store
+- ChromaDB stores are persisted to disk in the data/chroma directory
+- The database will grow as more translations are performed
 
 ## Frontend Setup
 
@@ -107,7 +126,7 @@ Retrieval Augmented Generation settings can be adjusted in the global config fil
 - `rag_enabled`: Enable/disable RAG
 - `chunk_size`: Size of document chunks for embedding
 - `chunk_overlap`: Overlap between chunks
-- `vector_store_type`: Type of vector store to use (faiss, redis, pinecone)
+- `vector_store_type`: Type of vector store (now using "chroma")
 
 ### User-Specific Settings
 
@@ -122,8 +141,17 @@ To add a new LLM provider:
 3. Add the provider's configuration to the `.env` file
 4. Update the global configuration
 
+## Database Files
+
+The following database files are used and should be included in git:
+
+- `backend/data/auth.db` - SQLite database for authentication
+- `backend/data/chroma/` - ChromaDB directory for vector storage
+
 ## Troubleshooting
 
 - **API Key Issues**: Ensure all required API keys are set correctly in the `.env` file
-- **Memory Errors**: If you encounter memory issues, try reducing batch sizes and model complexity
-- **Database Errors**: Check database connection settings and ensure the database exists
+- **Authentication Issues**: Check that the SQLite database is writable and accessible
+- **Memory Errors**: If you encounter memory errors, try reducing batch sizes and model complexity
+- **ChromaDB Errors**: Ensure the ChromaDB directory is writable
+

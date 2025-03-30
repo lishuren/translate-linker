@@ -1,39 +1,18 @@
 
-# Environment variables
-.env
-
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
+
+# Distribution / packaging
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
+build/
 *.egg-info/
-.installed.cfg
-*.egg
 
 # Virtual Environment
 venv/
+env/
 ENV/
-
-# Vector stores and local data
-vector_stores/
-uploads/
-processed/
-translations/
 
 # IDE files
 .idea/
@@ -43,3 +22,22 @@ translations/
 
 # Logs
 *.log
+logs/
+
+# Environment variables
+.env
+
+# Temporary files
+tmp/
+temp/
+
+# Uploads and outputs
+uploads/*
+!uploads/.gitkeep
+translations/*
+!translations/.gitkeep
+
+# Keep SQLite database and ChromaDB files
+!data/
+!data/chroma/
+!data/auth.db

@@ -4,7 +4,7 @@ import uuid
 import time
 from typing import Dict, List, Optional
 from datetime import datetime
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Query, Depends, Header
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -15,6 +15,8 @@ from services.translation_service import TranslationService
 from services.file_service import FileService
 from services.user_settings_service import UserSettingsService
 from services.global_config_service import GlobalConfigService
+from services.rag_translation_service import rag_translation_service
+from services.chroma_service import chroma_service
 from models.translation import (
     Translation, 
     TranslationStatus, 
@@ -23,14 +25,15 @@ from models.translation import (
     TranslationStatusResponse
 )
 
-# Import TMX router
+# Import routers
 from app_tmx import tmx_router
+from app_auth import auth_router, get_user_id_from_token
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(
-    title="Translation API",
+    title="LingoAIO API",
     description="API for translating documents using LangChain with multiple LLM providers",
     version="1.0.0"
 )
@@ -50,8 +53,9 @@ translation_service = TranslationService()
 user_settings_service = UserSettingsService()
 global_config = GlobalConfigService()
 
-# Include TMX router
+# Include routers
 app.include_router(tmx_router)
+app.include_router(auth_router)
 
 # Create necessary directories
 os.makedirs("uploads", exist_ok=True)
@@ -59,6 +63,8 @@ os.makedirs("translations", exist_ok=True)
 os.makedirs("tmx_files", exist_ok=True)
 os.makedirs("vector_stores", exist_ok=True)
 os.makedirs("config", exist_ok=True)
+os.makedirs("backend/data", exist_ok=True)
+os.makedirs("backend/data/chroma", exist_ok=True)
 
 @app.post("/api/translation/upload", response_model=TranslationResponse)
 async def upload_document(
@@ -66,16 +72,19 @@ async def upload_document(
     file: UploadFile = File(...),
     targetLanguage: str = Form(...),
     llmProvider: Optional[str] = Form(None),
-    userId: Optional[str] = Form(None)
+    authorization: Optional[str] = Header(None)
 ):
     try:
+        # Get user ID from token
+        user_id = get_user_id_from_token(authorization)
+        
         # Check if user is allowed to select model
-        is_allowed = await translation_service.is_model_selection_allowed(userId)
+        is_allowed = await translation_service.is_model_selection_allowed(user_id)
         
         # If user selection is not allowed, ignore provided LLM provider
         if not is_allowed and llmProvider:
             # Get the user's configured provider instead
-            llmProvider = user_settings_service.get_user_llm_provider(userId)
+            llmProvider = user_settings_service.get_user_llm_provider(user_id)
             
         # Generate unique ID for this translation
         translation_id = str(uuid.uuid4())
@@ -96,19 +105,15 @@ async def upload_document(
         use_rag = global_config.get_config().get('translation_settings', {}).get('rag_enabled', True)
         
         if use_rag:
-            # Import here to avoid circular imports
-            from services.rag_translation_service import RAGTranslationService
-            rag_service = RAGTranslationService()
-            
             # Start translation in background with RAG
             background_tasks.add_task(
-                rag_service.process_translation_with_rag,
+                rag_translation_service.process_translation_with_rag,
                 translation_id=translation_id,
                 file_path=file_path,
                 target_language=targetLanguage,
                 original_filename=file.filename,
                 llm_provider=llmProvider,
-                user_id=userId
+                user_id=user_id
             )
         else:
             # Use the standard translation service
@@ -119,7 +124,7 @@ async def upload_document(
                 target_language=targetLanguage,
                 original_filename=file.filename,
                 llm_provider=llmProvider,
-                user_id=userId
+                user_id=user_id
             )
         
         return {"translation": translation.dict()}
@@ -153,18 +158,24 @@ async def download_translation(translation_id: str):
         raise HTTPException(status_code=500, detail=f"Error downloading translation: {str(e)}")
 
 @app.get("/api/translation/history")
-async def get_translation_history():
+async def get_translation_history(authorization: Optional[str] = Header(None)):
     try:
-        translations = await translation_service.get_all_translations()
+        # Get user ID from token
+        user_id = get_user_id_from_token(authorization)
+        
+        translations = await translation_service.get_all_translations(user_id)
         return {"translations": translations}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving translation history: {str(e)}")
 
 @app.get("/api/config/model-selection-allowed")
-async def is_model_selection_allowed(userId: Optional[str] = Query(None)):
+async def is_model_selection_allowed(authorization: Optional[str] = Header(None)):
     """Check if a user is allowed to select LLM models"""
     try:
-        is_allowed = await translation_service.is_model_selection_allowed(userId)
+        # Get user ID from token
+        user_id = get_user_id_from_token(authorization)
+        
+        is_allowed = await translation_service.is_model_selection_allowed(user_id)
         return {"allowed": is_allowed}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking model selection permission: {str(e)}")
@@ -209,3 +220,4 @@ if __name__ == "__main__":
         port=port,
         reload=debug
     )
+
