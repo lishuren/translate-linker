@@ -152,7 +152,7 @@ const Index = () => {
             Translate Documents with Precision and Speed
           </h1>
           <p className="text-xl text-muted-foreground">
-            TranslateLinker uses advanced AI to translate your documents accurately 
+            LingoAIO uses advanced AI to translate your documents accurately 
             while preserving the original formatting and context.
           </p>
         </motion.div>

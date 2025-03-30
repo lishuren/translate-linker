@@ -1,5 +1,5 @@
 
-# Translation API Backend
+# LingoAIO Backend
 
 This is the Python backend for the translation application that utilizes:
 - Langchain for document processing and orchestration

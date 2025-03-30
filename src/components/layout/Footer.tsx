@@ -9,7 +9,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <div className="flex flex-col items-center md:items-start">
-            <span className="font-semibold text-lg">TranslateLinker</span>
+            <span className="font-semibold text-lg">LingoAIO</span>
             <p className="text-sm text-muted-foreground mt-1">
               Document translation made simple
             </p>
@@ -25,7 +25,7 @@ const Footer = () => {
           </div>
           
           <div className="text-sm text-muted-foreground">
-            &copy; {currentYear} TranslateLinker. All rights reserved.
+            &copy; {currentYear} LingoAIO. All rights reserved.
           </div>
         </div>
       </div>

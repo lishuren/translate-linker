@@ -1,7 +1,7 @@
 
-# Advanced Translation Service - Setup Guide
+# LingoAIO - Setup Guide
 
-This document provides instructions for setting up the Translation Service backend with RAG, TMX support, and multiple LLM providers.
+This document provides instructions for setting up the LingoAIO backend with RAG, TMX support, and multiple LLM providers.
 
 ## System Requirements
 
