@@ -5,14 +5,14 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { useToast } from "../hooks/use-toast";
-import { useDispatch, useSelector } from "../hooks/use-redux";
+import { useAppDispatch, useAppSelector } from "../hooks/use-redux";
 import { loginUser, clearError } from "../store/slices/authSlice";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
+  const { isAuthenticated, isLoading, error } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
 

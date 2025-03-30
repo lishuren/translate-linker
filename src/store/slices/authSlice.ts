@@ -1,6 +1,20 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { authApi, User } from "../../services/translationApi";
+import { authApi } from "../../services/translationApi";
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  isLoggedIn: boolean;
+  role?: string;
+  lastLogin?: string;
+  preferences?: {
+    theme?: string;
+    language?: string;
+    notifications?: boolean;
+  };
+}
 
 interface AuthState {
   user: User | null;
@@ -28,7 +42,7 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-export const logoutUser = createAsyncThunk(
+export const logout = createAsyncThunk(
   "auth/logout", 
   async (_, thunkAPI) => {
     try {
@@ -59,6 +73,11 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    logout: (state) => {
+      state.isAuthenticated = false;
+      state.user = null;
+      state.error = null;
+    }
   },
   extraReducers: (builder) => {
     // Login
@@ -80,16 +99,16 @@ const authSlice = createSlice({
     });
     
     // Logout
-    builder.addCase(logoutUser.pending, (state) => {
+    builder.addCase(logout.pending, (state) => {
       state.isLoading = true;
     });
-    builder.addCase(logoutUser.fulfilled, (state) => {
+    builder.addCase(logout.fulfilled, (state) => {
       state.isLoading = false;
       state.isAuthenticated = false;
       state.user = null;
       state.error = null;
     });
-    builder.addCase(logoutUser.rejected, (state, action) => {
+    builder.addCase(logout.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload as string;
       // Still logout the user on the client side even if the server request failed

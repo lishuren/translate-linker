@@ -33,45 +33,39 @@ export interface Translation {
   processingDetails?: ProcessingDetails | null;
 }
 
-interface TranslationState {
-  translations: Translation[];
-  activeTranslation: Translation | null;
-  isLoading: boolean;
+export interface CurrentUpload {
+  file: File | null;
+  targetLanguage: string;
+  status: "idle" | "uploading" | "success" | "error";
   error: string | null;
-  modelSelectionAllowed: boolean;
-  availableWebTranslations: string[];
-  systemInfo: any;
+}
+
+export interface TranslationState {
+  translations: Translation[];
+  currentUpload: CurrentUpload;
+  status: "idle" | "loading" | "success" | "error";
+  error: string | null;
 }
 
 const initialState: TranslationState = {
   translations: [],
-  activeTranslation: null,
-  isLoading: false,
-  error: null,
-  modelSelectionAllowed: true,
-  availableWebTranslations: [],
-  systemInfo: null
+  currentUpload: {
+    file: null,
+    targetLanguage: "",
+    status: "idle",
+    error: null
+  },
+  status: "idle",
+  error: null
 };
 
 // Async thunks
 export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
-  async ({ file, targetLanguage, llmProvider }: { file: File; targetLanguage: string; llmProvider?: string }, thunkAPI) => {
+  async ({ file, targetLanguage }: { file: File; targetLanguage: string }, thunkAPI) => {
     try {
-      const translation = await translationApi.uploadDocument(file, targetLanguage, llmProvider);
+      const translation = await translationApi.uploadDocument(file, targetLanguage);
       return translation;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
-    }
-  }
-);
-
-export const checkTranslationStatus = createAsyncThunk(
-  "translation/checkStatus",
-  async (translationId: string, thunkAPI) => {
-    try {
-      const status = await translationApi.checkStatus(translationId);
-      return status;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.message);
     }
@@ -90,54 +84,6 @@ export const fetchTranslations = createAsyncThunk(
   }
 );
 
-export const downloadTranslation = createAsyncThunk(
-  "translation/download",
-  async (translationId: string, thunkAPI) => {
-    try {
-      await translationApi.downloadTranslation(translationId);
-      return translationId;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
-    }
-  }
-);
-
-export const checkModelSelectionPermission = createAsyncThunk(
-  "translation/modelSelectionPermission",
-  async (_, thunkAPI) => {
-    try {
-      const allowed = await translationApi.getModelSelectionPermission();
-      return allowed;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
-    }
-  }
-);
-
-export const fetchWebTranslationServices = createAsyncThunk(
-  "translation/webTranslationServices",
-  async (_, thunkAPI) => {
-    try {
-      const services = await translationApi.getAvailableWebTranslationServices();
-      return services;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
-    }
-  }
-);
-
-export const fetchSystemInfo = createAsyncThunk(
-  "translation/systemInfo",
-  async (_, thunkAPI) => {
-    try {
-      const info = await translationApi.getSystemInfo();
-      return info;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
-    }
-  }
-);
-
 const translationSlice = createSlice({
   name: "translation",
   initialState,
@@ -145,83 +91,51 @@ const translationSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    setActiveTranslation: (state, action: PayloadAction<Translation | null>) => {
-      state.activeTranslation = action.payload;
+    setFile: (state, action: PayloadAction<File | null>) => {
+      state.currentUpload.file = action.payload;
+      if (!action.payload) {
+        state.currentUpload.status = "idle";
+        state.currentUpload.error = null;
+      }
+    },
+    setTargetLanguage: (state, action: PayloadAction<string>) => {
+      state.currentUpload.targetLanguage = action.payload;
+    },
+    clearUpload: (state) => {
+      state.currentUpload = initialState.currentUpload;
     }
   },
   extraReducers: (builder) => {
     // Upload document
     builder.addCase(uploadDocument.pending, (state) => {
-      state.isLoading = true;
+      state.currentUpload.status = "uploading";
       state.error = null;
     });
     builder.addCase(uploadDocument.fulfilled, (state, action: PayloadAction<Translation>) => {
-      state.isLoading = false;
-      state.activeTranslation = action.payload;
+      state.currentUpload.status = "success";
       state.translations.push(action.payload);
     });
     builder.addCase(uploadDocument.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-    
-    // Check translation status
-    builder.addCase(checkTranslationStatus.fulfilled, (state, action) => {
-      const { id, status, progress, downloadUrl, errorMessage } = action.payload;
-      
-      // Update the translation in the list
-      const translationIndex = state.translations.findIndex(t => t.id === id);
-      if (translationIndex !== -1) {
-        state.translations[translationIndex] = {
-          ...state.translations[translationIndex],
-          status,
-          downloadUrl: downloadUrl || state.translations[translationIndex].downloadUrl,
-          errorMessage: errorMessage || state.translations[translationIndex].errorMessage
-        };
-      }
-      
-      // Update active translation if it's the one being checked
-      if (state.activeTranslation && state.activeTranslation.id === id) {
-        state.activeTranslation = {
-          ...state.activeTranslation,
-          status,
-          downloadUrl: downloadUrl || state.activeTranslation.downloadUrl,
-          errorMessage: errorMessage || state.activeTranslation.errorMessage
-        };
-      }
+      state.currentUpload.status = "error";
+      state.currentUpload.error = action.payload as string;
     });
     
     // Fetch all translations
     builder.addCase(fetchTranslations.pending, (state) => {
-      state.isLoading = true;
+      state.status = "loading";
       state.error = null;
     });
     builder.addCase(fetchTranslations.fulfilled, (state, action: PayloadAction<Translation[]>) => {
-      state.isLoading = false;
+      state.status = "success";
       state.translations = action.payload;
     });
     builder.addCase(fetchTranslations.rejected, (state, action) => {
-      state.isLoading = false;
+      state.status = "error";
       state.error = action.payload as string;
-    });
-    
-    // Model selection permission
-    builder.addCase(checkModelSelectionPermission.fulfilled, (state, action) => {
-      state.modelSelectionAllowed = action.payload;
-    });
-    
-    // Web translation services
-    builder.addCase(fetchWebTranslationServices.fulfilled, (state, action) => {
-      state.availableWebTranslations = action.payload;
-    });
-    
-    // System info
-    builder.addCase(fetchSystemInfo.fulfilled, (state, action) => {
-      state.systemInfo = action.payload;
     });
   }
 });
 
-export const { clearError, setActiveTranslation } = translationSlice.actions;
+export const { clearError, setFile, setTargetLanguage, clearUpload } = translationSlice.actions;
 
 export default translationSlice.reducer;
