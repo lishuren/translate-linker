@@ -36,7 +36,7 @@ export const loginUser = createAsyncThunk(
     try {
       const user = await authApi.login(username, password);
       return user;
-    } catch (error) {
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.message);
     }
   }
@@ -48,7 +48,7 @@ export const logout = createAsyncThunk(
     try {
       await authApi.logout();
       return null;
-    } catch (error) {
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.message);
     }
   }
@@ -60,7 +60,7 @@ export const checkAuth = createAsyncThunk(
     try {
       const user = await authApi.getCurrentUser();
       return user;
-    } catch (error) {
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.message);
     }
   }
@@ -71,11 +71,6 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     clearError: (state) => {
-      state.error = null;
-    },
-    logout: (state) => {
-      state.isAuthenticated = false;
-      state.user = null;
       state.error = null;
     }
   },

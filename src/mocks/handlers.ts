@@ -3,6 +3,7 @@
 // In a real application, these would be replaced with actual API calls
 
 import { User } from "@/store/slices/authSlice";
+import { TranslationStatus } from "@/store/slices/translationSlice";
 
 // Mock users database
 const users: Record<string, { password: string }> = {};
@@ -25,7 +26,12 @@ export const requestPasswordHandler = async (email: string): Promise<boolean> =>
 export const loginHandler = async (email: string, password: string): Promise<User | null> => {
   // Check if user exists and password matches
   if (users[email] && users[email].password === password) {
-    return { email, isLoggedIn: true };
+    return { 
+      id: "mock-user-id-123", 
+      username: email, 
+      email: email, 
+      isLoggedIn: true 
+    };
   }
   return null;
 };
@@ -49,7 +55,7 @@ export const uploadDocumentHandler = async (file: File, targetLanguage: string):
     id: Math.random().toString(36).substring(2, 9),
     originalFileName: file.name,
     targetLanguage,
-    status: "processing",
+    status: TranslationStatus.PROCESSING,
     checksum,
     createdAt: new Date().toISOString(),
   };
@@ -62,7 +68,7 @@ export const uploadDocumentHandler = async (file: File, targetLanguage: string):
     if (index !== -1) {
       translations[index] = {
         ...translations[index],
-        status: "completed",
+        status: TranslationStatus.COMPLETED,
         downloadUrl: "#/mock-download-link",
       };
     }

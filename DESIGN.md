@@ -1,160 +1,145 @@
 
-# LingoAIO System Design Documentation
-
-## Overview
-
-LingoAIO is an AI-powered document translation platform that leverages modern language models, Translation Memory eXchange (TMX), and Retrieval-Augmented Generation (RAG) to provide accurate and context-aware translations across multiple languages and document formats.
+# LingoAIO Design Document
 
 ## System Architecture
 
-### Frontend
+LingoAIO is a document translation platform built with a modern React frontend and FastAPI backend. The system leverages AI technology for high-quality translations and uses efficient document processing workflows.
 
-The frontend is built with React, Redux, and TypeScript, providing a responsive and intuitive user interface for document translation operations.
+### Technology Stack
 
-#### Key Components:
+#### Frontend
+- **Framework**: React with TypeScript
+- **State Management**: Redux Toolkit
+- **Routing**: React Router
+- **UI Components**: Custom components with Tailwind CSS
+- **API Communication**: Fetch API with async/await
 
-- **Authentication System**: Manages user sessions and access control
-- **Translation Upload**: Handles document uploads and translation parameters
-- **Translation History**: Tracks and displays past translations with status and download options
-- **User Preferences**: Manages user-specific settings and configurations
+#### Backend
+- **Framework**: FastAPI (Python)
+- **Authentication**: JWT-based authentication with SQLite storage
+- **Database**: 
+  - SQLite for user authentication and session management
+  - ChromaDB for RAG (Retrieval-Augmented Generation) and document processing
+- **File Storage**: Local file system with organized directory structure
+- **Translation Processing**: Custom translation service with AI integration
 
-### Backend
+## Core Features
 
-The backend uses a combination of Python services, SQLite for authentication, and ChromaDB for RAG functionalities.
+### Authentication
+- Username/password authentication
+- Session management (email users have session expiration, username users have persistent sessions)
+- JWT token-based API security
 
-#### Key Components:
+### Document Translation
+- Document upload with language selection
+- Background processing with status tracking
+- RAG-enhanced translation for improved accuracy
+- Download of completed translations
 
-- **Authentication Service**: Manages user credentials and session control using SQLite
-- **Translation Service**: Coordinates the translation pipeline
-- **RAG Translation Service**: Implements Retrieval-Augmented Generation for context-aware translations
-- **TMX Service**: Processes and utilizes Translation Memory eXchange files
-- **File Service**: Manages document uploads, storage, and retrieval
-- **Web Translation Service**: Integrates with third-party translation APIs
+### User Management
+- User preferences and settings
+- Role-based permissions
+- Activity tracking
 
-## Database Structure
+## Data Models
 
-### SQLite (Auth Database)
+### User
+```
+User {
+  id: string
+  username: string
+  email: string (optional)
+  isLoggedIn: boolean
+  role: string (optional)
+  lastLogin: datetime (optional)
+  preferences: {
+    theme: string (optional)
+    language: string (optional)
+    notifications: boolean (optional)
+  }
+}
+```
 
-Used for storing user authentication data with the following schema:
+### Translation
+```
+Translation {
+  id: string
+  originalFileName: string
+  targetLanguage: string
+  status: TranslationStatus (PENDING, PROCESSING, COMPLETED, FAILED)
+  downloadUrl: string (optional)
+  createdAt: datetime
+  errorMessage: string (optional)
+  processingDetails: {
+    engine: string
+    model: string
+    vectorStore: string
+    documentChunks: number
+    ragEnabled: boolean
+    processingTime: number (optional)
+    totalTokens: number (optional)
+    translationProvider: string (optional)
+    agentEnabled: boolean
+    confidenceScore: number (optional)
+  }
+}
+```
 
-- **Users Table**:
-  - id (Primary Key)
-  - username (unique)
-  - email (unique)
-  - password_hash
-  - is_email_type (Boolean) - determines password expiration rules
-  - last_login
-  - created_at
-  - session_token (for web sessions)
+## API Endpoints
 
-### ChromaDB (Vector Database)
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/me` - Get current user information
 
-Used for storing and retrieving translation embeddings with user-specific collections:
+### Translation
+- `POST /api/translation/upload` - Upload document for translation
+- `GET /api/translation/status/:id` - Check translation status
+- `GET /api/translation/history` - Get user's translation history
+- `GET /api/translation/download/:id` - Download translated document
 
-- **Collections**: One per user
-- **Documents**: Translation segments with metadata
-- **Metadata**:
-  - source_language
-  - target_language
-  - document_type
-  - creation_date
-  - confidence_score
-  - original_document_id
+## Data Storage
 
-## Key Features
+### SQLite Database
+- Used for authentication, user data, and session management
+- Tables:
+  - users - User information
+  - sessions - Active user sessions
+  - user_preferences - User settings and preferences
 
-### Authentication System
+### ChromaDB
+- Vector database for RAG (Retrieval-Augmented Generation)
+- Used for document chunking and embedding storage
+- Each user has dedicated ChromaDB collections for their documents
+- Enables context-aware translation with better accuracy
 
-- **Password Rules**: Email-type users have session-based expiration; username-type users have persistent logins
-- **Default User**: username: `tmxer`, password: `abcd1234`
+## Development Setup
 
-### Translation Processing
+### Prerequisites
+- Node.js 18+ for frontend development
+- Python 3.9+ for backend development
+- SQLite3 for database
+- ChromaDB for vector storage
 
-1. **Document Upload**: Files are uploaded, validated, and stored
-2. **Language Detection**: Source language is automatically detected
-3. **Document Processing**: Files are parsed and segmented based on format
-4. **RAG Integration**: 
-   - Similar segments from previous translations are retrieved
-   - Context is provided to the LLM for improved translation quality
-5. **LLM Translation**: Documents are translated using configured language models
-6. **Post-processing**: Formatting is preserved and output documents are generated
+### Initial Setup
+1. Clone repository
+2. Install frontend dependencies: `npm install`
+3. Install backend dependencies: `pip install -r requirements.txt`
+4. Set up environment variables
+5. Initialize database: `python init_db.py`
+6. Start development servers:
+   - Frontend: `npm run dev`
+   - Backend: `python app.py`
 
-### TMX Support
-
-- **TMX Upload**: Users can upload previous translation memory files
-- **TMX Processing**: Files are parsed and stored in the user's ChromaDB collection
-- **RAG Integration**: TMX data enhances translation quality through retrieval
-
-### Storage and Persistence
-
-- **SQLite**: Authentication data persists across sessions
-- **ChromaDB**: Translation knowledge persists across sessions with user-specific collections
-- **Git Integration**: Core database files are included in the repository for easy setup
-
-## Third-Party Integrations
-
-### LLM Services
-
-- Primary support for SiliconFlow's cloud.siliconflow.cn
-- Configurable model selection based on user permissions
-
-### Translation APIs
-
-- Integration with external translation services for comparison and backup
-
-## Setup Instructions
-
-### Backend Setup
-
-1. **Environment Configuration**:
-   - Configure environment variables or use defaults
-   - Database paths for SQLite and ChromaDB are pre-configured
-
-2. **Dependencies Installation**:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-3. **Database Initialization**:
-   - SQLite database is included with default user: tmxer/abcd1234
-   - ChromaDB initializes automatically on first use
-
-4. **Starting the Backend**:
-   ```bash
-   python app.py
-   ```
-
-### Frontend Setup
-
-1. **Dependencies Installation**:
-   ```bash
-   npm install
-   ```
-
-2. **Starting the Frontend**:
-   ```bash
-   npm run dev
-   ```
-
-## Design Principles
-
-1. **User-Centric Design**: Focused on ease of use and clear workflow
-2. **Modularity**: Services are designed to be independent and replaceable
-3. **Persistence**: User data and translation knowledge persist across sessions
-4. **Security**: Authentication data is properly secured
-5. **Extensibility**: The system is designed to accommodate additional languages, models, and features
+## Deployment
+- Frontend can be deployed as static files on any web server
+- Backend requires Python runtime with appropriate dependencies
+- Ensure database files are properly secured and backed up
+- Configure proper CORS settings for production
 
 ## Future Enhancements
-
-1. **Multi-tenant Support**: Enhanced isolation between user data
-2. **Advanced RAG Models**: Implement more sophisticated retrieval mechanisms
-3. **Collaborative Translations**: Allow multiple users to contribute to translations
-4. **Terminology Management**: Custom terminology databases per user/organization
-5. **Quality Metrics**: Implement objective translation quality assessment
-
----
-
-This design document will be updated as the system evolves.
-
-Last Updated: [Current Date]
+- Multi-language UI
+- Advanced document processing options
+- Integration with more translation providers
+- Analytics dashboard for usage statistics
+- Collaborative translation workflows

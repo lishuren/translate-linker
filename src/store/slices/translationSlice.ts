@@ -65,8 +65,12 @@ export const uploadDocument = createAsyncThunk(
   async ({ file, targetLanguage }: { file: File; targetLanguage: string }, thunkAPI) => {
     try {
       const translation = await translationApi.uploadDocument(file, targetLanguage);
-      return translation;
-    } catch (error) {
+      // Convert string status to enum if needed
+      return {
+        ...translation,
+        status: translation.status as TranslationStatus
+      } as Translation;
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.message);
     }
   }
@@ -77,8 +81,12 @@ export const fetchTranslations = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       const translations = await translationApi.fetchTranslations();
-      return translations;
-    } catch (error) {
+      // Convert string statuses to enum if needed
+      return translations.map(t => ({
+        ...t,
+        status: t.status as TranslationStatus
+      })) as Translation[];
+    } catch (error: any) {
       return thunkAPI.rejectWithValue(error.message);
     }
   }
@@ -111,7 +119,7 @@ const translationSlice = createSlice({
       state.currentUpload.status = "uploading";
       state.error = null;
     });
-    builder.addCase(uploadDocument.fulfilled, (state, action: PayloadAction<Translation>) => {
+    builder.addCase(uploadDocument.fulfilled, (state, action) => {
       state.currentUpload.status = "success";
       state.translations.push(action.payload);
     });
@@ -125,7 +133,7 @@ const translationSlice = createSlice({
       state.status = "loading";
       state.error = null;
     });
-    builder.addCase(fetchTranslations.fulfilled, (state, action: PayloadAction<Translation[]>) => {
+    builder.addCase(fetchTranslations.fulfilled, (state, action) => {
       state.status = "success";
       state.translations = action.payload;
     });

@@ -1,4 +1,6 @@
 
+import { TranslationStatus } from "../store/slices/translationSlice";
+
 export interface User {
   id: string;
   email: string;
@@ -12,7 +14,7 @@ export interface Translation {
   id: string;
   originalFileName: string;
   targetLanguage: string;
-  status: string;
+  status: TranslationStatus;
   downloadUrl?: string | null;
   createdAt: string;
   errorMessage?: string | null;
@@ -27,7 +29,7 @@ export const authApi = {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: username, password })
+      body: JSON.stringify({ username, password })
     });
     
     if (!response.ok) {
