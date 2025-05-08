@@ -16,7 +16,7 @@ export const translationApi = {
     formData.append('targetLanguage', targetLanguage);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/translations/upload`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/translation/upload`, formData, {
         headers: {
           ...authHeader(),
           'Content-Type': 'multipart/form-data',
@@ -30,7 +30,7 @@ export const translationApi = {
 
   fetchTranslations: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/translations`, {
+      const response = await axios.get(`${API_BASE_URL}/translation`, {
         headers: authHeader(),
       });
       return response.data;
