@@ -13,6 +13,11 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
+
 class UserResponse(BaseModel):
     id: str
     username: str
@@ -59,6 +64,21 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
 async def get_me(user: dict = Depends(get_current_user)):
     return UserResponse(**user)
 
+@auth_router.post("/api/auth/create-user", response_model=UserResponse)
+async def create_user(request: CreateUserRequest, user: dict = Depends(get_current_user)):
+    # Only allow creation if authenticated
+    try:
+        new_user = auth_db.create_user(
+            username=request.username,
+            password=request.password,
+            email=request.email
+        )
+        return UserResponse(**new_user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"User creation error: {str(e)}")
+
 # Add this function to be used by other routers to verify authentication
 def get_user_id_from_token(authorization: Optional[str] = Header(None)):
     if not authorization:
@@ -71,4 +91,3 @@ def get_user_id_from_token(authorization: Optional[str] = Header(None)):
         return user["id"] if user else None
     except Exception:
         return None
-

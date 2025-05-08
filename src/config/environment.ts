@@ -22,7 +22,7 @@ interface EnvironmentConfig {
 
 // Development environment configuration
 const development: EnvironmentConfig = {
-  apiBaseUrl: '', // Empty because we use the proxy in development
+  apiBaseUrl: '/api', // Use /api prefix in development for proxy
   isDevelopment: true,
   isProduction: false,
   appName: 'LingoAIO (Development)',
@@ -34,7 +34,7 @@ const development: EnvironmentConfig = {
 
 // Production environment configuration
 const production: EnvironmentConfig = {
-  apiBaseUrl: '', // Empty because we expect the backend to be on the same domain in production
+  apiBaseUrl: '/api', // In production, the backend should be on the same domain
   isDevelopment: false,
   isProduction: true,
   appName: 'LingoAIO',
