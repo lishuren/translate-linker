@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "../hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "../hooks/use-redux";
 import { loginUser, clearError } from "../store/slices/authSlice";
+import config from "../config/environment";
+import { EnvironmentIndicator } from "../components/EnvironmentIndicator";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -63,7 +65,10 @@ const Login = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Login to LingoAIO</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-2xl">{config.appName}</CardTitle>
+            <EnvironmentIndicator />
+          </div>
           <CardDescription className="text-center">
             Enter your credentials to access your account
           </CardDescription>

@@ -1,5 +1,6 @@
 
 import { TranslationStatus } from "../store/slices/translationSlice";
+import config from "../config/environment";
 
 export interface User {
   id: string;
@@ -21,7 +22,7 @@ export interface Translation {
 }
 
 export const getDownloadUrl = (translationId: string): string => {
-  return `/api/translation/download/${translationId}`;
+  return `${config.apiBaseUrl}/api/translation/download/${translationId}`;
 };
 
 export const authApi = {

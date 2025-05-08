@@ -1,4 +1,3 @@
-
 import { requestPasswordHandler, loginHandler, uploadDocumentHandler, fetchTranslationsHandler } from "../mocks/handlers";
 import { Document } from "langchain/document";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
@@ -393,37 +392,39 @@ const originalFetch = window.fetch;
 window.fetch = async (url, options) => {
   if (typeof url === 'string') {
     // Auth endpoints
+    if (url.endsWith('/api/auth/login') && options?.method === 'POST') {
+      const body = JSON.parse(options.body as string);
+      try {
+        // Extract username and password from the request body
+        // Note: The backend expects 'username' but our mock handlers use 'email'
+        const result = await api.auth.login(body.username, body.password);
+        return new Response(JSON.stringify(result), { status: 200 });
+      } catch (error: any) {
+        return new Response(JSON.stringify({ message: error.message }), { status: 401 });
+      }
+    }
+    
+    if (url.endsWith('/api/auth/logout') && options?.method === 'POST') {
+      try {
+        const result = await api.auth.logout();
+        return new Response(JSON.stringify(result), { status: 200 });
+      } catch (error: any) {
+        return new Response(JSON.stringify({ message: error.message }), { status: 500 });
+      }
+    }
+    
     if (url === '/api/auth/request-password' && options?.method === 'POST') {
       const body = JSON.parse(options.body as string);
       try {
         const result = await api.auth.requestPassword(body.email);
         return new Response(JSON.stringify(result), { status: 200 });
-      } catch (error) {
+      } catch (error: any) {
         return new Response(JSON.stringify({ message: error.message }), { status: 400 });
       }
     }
     
-    if (url === '/api/auth/login' && options?.method === 'POST') {
-      const body = JSON.parse(options.body as string);
-      try {
-        const result = await api.auth.login(body.email, body.password);
-        return new Response(JSON.stringify(result), { status: 200 });
-      } catch (error) {
-        return new Response(JSON.stringify({ message: error.message }), { status: 401 });
-      }
-    }
-    
-    if (url === '/api/auth/logout' && options?.method === 'POST') {
-      try {
-        const result = await api.auth.logout();
-        return new Response(JSON.stringify(result), { status: 200 });
-      } catch (error) {
-        return new Response(JSON.stringify({ message: error.message }), { status: 500 });
-      }
-    }
-    
-    // Translation endpoints
-    if (url === '/api/translation/upload' && options?.method === 'POST') {
+    // Translation endpoints with fixed URL handling to work with proxies
+    if (url.endsWith('/api/translation/upload') && options?.method === 'POST') {
       const formData = options.body as FormData;
       const file = formData.get('file') as File;
       const targetLanguage = formData.get('targetLanguage') as string;
@@ -431,27 +432,27 @@ window.fetch = async (url, options) => {
       try {
         const result = await api.translation.uploadDocument(file, targetLanguage);
         return new Response(JSON.stringify(result), { status: 200 });
-      } catch (error) {
+      } catch (error: any) {
         return new Response(JSON.stringify({ message: error.message }), { status: 500 });
       }
     }
     
     // New endpoint for checking translation status
-    if (url.startsWith('/api/translation/status/') && !options?.method) {
+    if (url.match(/\/api\/translation\/status\/[^\/]+$/) && !options?.method) {
       const translationId = url.split('/').pop();
       try {
         const result = await api.translation.checkStatus(translationId);
         return new Response(JSON.stringify(result), { status: 200 });
-      } catch (error) {
+      } catch (error: any) {
         return new Response(JSON.stringify({ message: error.message }), { status: 404 });
       }
     }
     
-    if (url === '/api/translation/history') {
+    if (url.endsWith('/api/translation/history')) {
       try {
         const result = await api.translation.fetchTranslations();
         return new Response(JSON.stringify(result), { status: 200 });
-      } catch (error) {
+      } catch (error: any) {
         return new Response(JSON.stringify({ message: error.message }), { status: 500 });
       }
     }

@@ -6,7 +6,10 @@ import { User } from "@/store/slices/authSlice";
 import { TranslationStatus } from "@/store/slices/translationSlice";
 
 // Mock users database
-const users: Record<string, { password: string }> = {};
+const users: Record<string, { password: string }> = {
+  // Add a default user that will always be available
+  "tmxer": { password: "abcd1234" }
+};
 
 // Mock translations database
 const translations: any[] = [];
@@ -24,7 +27,7 @@ export const requestPasswordHandler = async (email: string): Promise<boolean> =>
 };
 
 export const loginHandler = async (email: string, password: string): Promise<User | null> => {
-  // Check if user exists and password matches
+  // Check if user exists and password matches (handling both username and email formats)
   if (users[email] && users[email].password === password) {
     return { 
       id: "mock-user-id-123", 
