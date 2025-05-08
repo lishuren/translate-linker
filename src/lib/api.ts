@@ -1,14 +1,6 @@
+
 import { requestPasswordHandler, loginHandler, uploadDocumentHandler, fetchTranslationsHandler } from "../mocks/handlers";
-import { Document } from "langchain/document";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
-import { MemoryVectorStore } from "langchain/vectorstores/memory";
-import { ChatOpenAI } from "@langchain/openai";
-import { LLMChain } from "langchain/chains";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { loadSummarizationChain } from "langchain/chains";
-import { RunnableSequence } from "@langchain/core/runnables";
-import { StringOutputParser } from "@langchain/core/output_parsers";
+import config from "../config/environment";
 
 // Mock API keys (would be stored securely in a real app)
 const MOCK_DEEPSEEK_API_KEY = "mock-api-key-for-demo";
@@ -52,14 +44,14 @@ export const api = {
   
   translation: {
     uploadDocument: async (file: File, targetLanguage: string) => {
-      console.log(`Processing translation with langchain for language: ${targetLanguage}`);
+      console.log(`Processing translation for language: ${targetLanguage}`);
       
       try {
         // 1. Read the file content
         const fileContent = await readFileAsText(file);
         
-        // 2. Process with langchain
-        const translation = await processWithLangchain(file.name, fileContent, targetLanguage);
+        // 2. Process with mock processing
+        const translation = await processMockTranslation(file.name, fileContent, targetLanguage);
         
         // 3. Use the original handler to maintain compatibility with existing code
         const result = await uploadDocumentHandler(file, targetLanguage);
@@ -67,7 +59,7 @@ export const api = {
         // Add artificial delay to simulate the real processing time
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // 4. Enhance result with langchain metadata
+        // 4. Enhance result with mock metadata
         result.processingDetails = {
           engine: "langchain",
           model: "deepseek-coder",
@@ -190,9 +182,9 @@ const detectLanguage = async (text: string): Promise<{language: string, confiden
   }
 };
 
-// Enhanced Langchain processing function
-async function processWithLangchain(fileName: string, content: string, targetLanguage: string) {
-  console.log(`Starting langchain processing pipeline for ${targetLanguage}`);
+// Enhanced Mock processing function instead of Langchain
+async function processMockTranslation(fileName: string, content: string, targetLanguage: string) {
+  console.log(`Starting mock translation pipeline for ${targetLanguage}`);
   const startTime = performance.now();
   
   // 1. Detect file type and preprocess
@@ -203,133 +195,50 @@ async function processWithLangchain(fileName: string, content: string, targetLan
   const { language: sourceLanguage, confidence: languageConfidence } = await detectLanguage(processedContent);
   console.log(`Detected source language: ${sourceLanguage} with confidence ${languageConfidence}`);
   
-  // 3. Split text into chunks
-  const textSplitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1000,
-    chunkOverlap: 200
-  });
+  // 3. Mock text chunking
+  const chunkSize = 1000;
+  const chunks = [];
   
-  // Create documents
-  const docs = await textSplitter.createDocuments([processedContent]);
-  console.log(`Document split into ${docs.length} chunks`);
-  
-  // 4. Create vector embeddings
-  const embeddings = new HuggingFaceInferenceEmbeddings({
-    apiKey: MOCK_DEEPSEEK_API_KEY,
-    model: "sentence-transformers/all-MiniLM-L6-v2", // A good general-purpose embedding model
-  });
-  
-  // 5. Create a vector store from the documents
-  console.log("Creating vector store from documents");
-  try {
-    const vectorStore = await MemoryVectorStore.fromDocuments(docs, embeddings);
-    
-    // 6. Set up a translator chain with DeepSeek LLM
-    console.log("Setting up translation chain with DeepSeek LLM");
-    const model = new ChatOpenAI({
-      modelName: "deepseek-coder", 
-      temperature: 0.1,
-      apiKey: MOCK_DEEPSEEK_API_KEY,
-    });
-    
-    // 7. Set up the translation prompt template
-    const translationSystemPrompt = `
-      You are a professional translator with expertise in translating between many languages.
-      You specialize in translating from ${sourceLanguage} to ${targetLanguage}.
-      Maintain the original formatting, structure, and meaning as closely as possible.
-      Honor cultural nuances and technical terminology appropriate for the target language.
-    `;
-    
-    const translationPrompt = ChatPromptTemplate.fromTemplate(`
-      {system_prompt}
-      
-      Text to translate:
-      {text}
-      
-      Translate the above text from ${sourceLanguage} to ${targetLanguage}.
-    `);
-    
-    // 8. Set up RAG for context-aware translation
-    console.log("Setting up RAG for context-aware translation");
-    
-    // 9. Create an agent to orchestrate the translation process
-    console.log("Creating translation agent");
-    
-    // This would be a real implementation using LangChain's agent framework
-    // For the mock, we'll simulate the agent's decision-making
-    
-    // Determine if specialized vocabulary is needed
-    const needsSpecializedVocabulary = format === 'msword' || format === 'pdf';
-    console.log(`Agent determined specialized vocabulary needed: ${needsSpecializedVocabulary}`);
-    
-    // Decide which translation method to use based on document type and length
-    const translationMethod = docs.length > 10 ? "batch" : "single";
-    console.log(`Agent selected translation method: ${translationMethod}`);
-    
-    // 10. Set up a translation chain
-    const chain = RunnableSequence.from([
-      {
-        system_prompt: () => translationSystemPrompt,
-        text: (input: { text: string }) => input.text,
-      },
-      translationPrompt,
-      model,
-      new StringOutputParser(),
-    ]);
-    
-    // 11. In a real implementation, we would process each chunk
-    // For this demo, we just simulate the process
-    console.log(`Simulating translation of ${docs.length} chunks using ${translationMethod} method`);
-    
-    // Simulate context retrieval from the vector store
-    for (let i = 0; i < Math.min(docs.length, 3); i++) {
-      console.log(`Simulating similarity search for chunk ${i+1}`);
-      await vectorStore.similaritySearch(docs[i].pageContent.substring(0, 50), 3);
-    }
-    
-    // Simulate translation of a few chunks
-    if (docs.length > 0) {
-      console.log("Sample translation of first chunk:");
-      try {
-        const sampleInput = { text: docs[0].pageContent.substring(0, 100) };
-        await chain.invoke(sampleInput);
-      } catch (error) {
-        console.log("Error in sample translation:", error);
-      }
-    }
-    
-    // 12. Call third-party translation API for the actual translation
-    console.log("Calling third-party translation API");
-    await simulateThirdPartyTranslationAPI(sourceLanguage, targetLanguage, docs.length);
-    
-    const endTime = performance.now();
-    const processingTime = Math.round(endTime - startTime);
-    
-    // Calculate a confidence score based on various factors
-    const overallConfidence = calculateConfidenceScore(
-      fileConfidence,
-      languageConfidence,
-      docs.length,
-      sourceLanguage,
-      targetLanguage
-    );
-    
-    console.log("Translation process completed successfully");
-    console.log(`Overall confidence score: ${overallConfidence}`);
-    
-    return {
-      success: true,
-      chunks: docs.length,
-      vectorStore: "completed",
-      modelUsed: "deepseek-coder",
-      processingTime,
-      totalTokens: docs.length * 1500, // Rough estimate of tokens used
-      confidenceScore: overallConfidence
-    };
-  } catch (error) {
-    console.error("Error in langchain processing:", error);
-    throw new Error(`Langchain processing failed: ${error.message}`);
+  for (let i = 0; i < processedContent.length; i += chunkSize) {
+    chunks.push(processedContent.slice(i, i + chunkSize));
   }
+  
+  console.log(`Document split into ${chunks.length} chunks`);
+  
+  // 4. Mock document processing and translation
+  console.log("Simulating translation process");
+  
+  // Simulate various translation steps with delays
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // 5. Call mock third-party translation API
+  console.log("Calling third-party translation API");
+  await simulateThirdPartyTranslationAPI(sourceLanguage, targetLanguage, chunks.length);
+  
+  const endTime = performance.now();
+  const processingTime = Math.round(endTime - startTime);
+  
+  // Calculate a confidence score based on various factors
+  const overallConfidence = calculateConfidenceScore(
+    fileConfidence,
+    languageConfidence,
+    chunks.length,
+    sourceLanguage,
+    targetLanguage
+  );
+  
+  console.log("Translation process completed successfully");
+  console.log(`Overall confidence score: ${overallConfidence}`);
+  
+  return {
+    success: true,
+    chunks: chunks.length,
+    vectorStore: "completed",
+    modelUsed: "deepseek-coder",
+    processingTime,
+    totalTokens: chunks.length * 1500, // Rough estimate of tokens used
+    confidenceScore: overallConfidence
+  };
 }
 
 // Simulate calling a third-party translation API

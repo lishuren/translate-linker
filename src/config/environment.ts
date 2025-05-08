@@ -15,6 +15,8 @@ interface EnvironmentConfig {
   isProduction: boolean;
   appName: string;
   version: string;
+  backendPort: number;
+  frontendPort: number;
 }
 
 const development: EnvironmentConfig = {
@@ -23,6 +25,8 @@ const development: EnvironmentConfig = {
   isProduction: false,
   appName: 'LingoAIO (Development)',
   version: '1.0.0-dev',
+  backendPort: 5000,
+  frontendPort: 8080
 };
 
 const production: EnvironmentConfig = {
@@ -31,6 +35,8 @@ const production: EnvironmentConfig = {
   isProduction: true,
   appName: 'LingoAIO',
   version: '1.0.0',
+  backendPort: 5000, // In production, this should match your deployment setup
+  frontendPort: 80    // Standard HTTP port for production
 };
 
 // Determine the current environment
