@@ -17,8 +17,10 @@ interface EnvironmentConfig {
   version: string;
   backendPort: number;
   frontendPort: number;
+  apiProxyEnabled: boolean;
 }
 
+// Development environment configuration
 const development: EnvironmentConfig = {
   apiBaseUrl: '', // Empty because we use the proxy in development
   isDevelopment: true,
@@ -26,9 +28,11 @@ const development: EnvironmentConfig = {
   appName: 'LingoAIO (Development)',
   version: '1.0.0-dev',
   backendPort: 5000,
-  frontendPort: 8080
+  frontendPort: 8080,
+  apiProxyEnabled: true
 };
 
+// Production environment configuration
 const production: EnvironmentConfig = {
   apiBaseUrl: '', // Empty because we expect the backend to be on the same domain in production
   isDevelopment: false,
@@ -36,13 +40,43 @@ const production: EnvironmentConfig = {
   appName: 'LingoAIO',
   version: '1.0.0',
   backendPort: 5000, // In production, this should match your deployment setup
-  frontendPort: 80    // Standard HTTP port for production
+  frontendPort: 80,  // Standard HTTP port for production
+  apiProxyEnabled: false
+};
+
+// Testing environment configuration
+const testing: EnvironmentConfig = {
+  ...development,
+  appName: 'LingoAIO (Testing)',
+  version: '1.0.0-test'
+};
+
+// Stage environment configuration
+const staging: EnvironmentConfig = {
+  ...production,
+  appName: 'LingoAIO (Staging)',
+  version: '1.0.0-staging'
 };
 
 // Determine the current environment
 const isProduction = import.meta.env.MODE === 'production';
+const mode = import.meta.env.MODE;
 
-// Export the appropriate configuration
-const config: EnvironmentConfig = isProduction ? production : development;
+// Export the appropriate configuration based on the environment
+let config: EnvironmentConfig;
+
+switch(mode) {
+  case 'production':
+    config = production;
+    break;
+  case 'test':
+    config = testing;
+    break;
+  case 'staging':
+    config = staging;
+    break;
+  default:
+    config = development;
+}
 
 export default config;

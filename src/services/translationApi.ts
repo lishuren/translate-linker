@@ -1,170 +1,73 @@
+import axios from 'axios';
+import config from '../config/environment';
 
-import { TranslationStatus } from "../store/slices/translationSlice";
-import config from "../config/environment";
+const API_BASE_URL = config.apiProxyEnabled ? '/api' : config.apiBaseUrl;
 
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  isLoggedIn: boolean;
-  role?: string;
-  lastLogin?: string;
-}
-
-export interface Translation {
-  id: string;
-  originalFileName: string;
-  targetLanguage: string;
-  status: TranslationStatus;
-  downloadUrl?: string | null;
-  createdAt: string;
-  errorMessage?: string | null;
-}
-
-export const getDownloadUrl = (translationId: string): string => {
-  return `${config.apiBaseUrl}/api/translation/download/${translationId}`;
-};
-
-export const authApi = {
-  login: async (username: string, password: string): Promise<User> => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Login failed');
-    }
-    
-    const data = await response.json();
-    return data.user;
-  },
-  
-  logout: async (): Promise<void> => {
-    const response = await fetch('/api/auth/logout', {
-      method: 'POST'
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Logout failed');
-    }
-  },
-  
-  getCurrentUser: async (): Promise<User | null> => {
-    try {
-      const response = await fetch('/api/auth/me');
-      
-      if (!response.ok) {
-        return null;
-      }
-      
-      const data = await response.json();
-      return data.user;
-    } catch (error) {
-      console.error('Error getting current user:', error);
-      return null;
-    }
-  }
+const authHeader = () => {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 export const translationApi = {
-  uploadDocument: async (file: File, targetLanguage: string, llmProvider?: string): Promise<Translation> => {
+  uploadDocument: async (file: File, targetLanguage: string) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
-    
-    if (llmProvider) {
-      formData.append('llmProvider', llmProvider);
-    }
-    
-    const response = await fetch('/api/translation/upload', {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Upload failed');
-    }
-    
-    const { translation } = await response.json();
-    return translation;
-  },
-  
-  checkStatus: async (translationId: string): Promise<any> => {
-    const response = await fetch(`/api/translation/status/${translationId}`);
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to check status');
-    }
-    
-    return await response.json();
-  },
-  
-  fetchTranslations: async (): Promise<Translation[]> => {
-    const response = await fetch('/api/translation/history');
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch translations');
-    }
-    
-    const { translations } = await response.json();
-    return translations;
-  },
-  
-  downloadTranslation: async (translationId: string): Promise<void> => {
-    window.location.href = getDownloadUrl(translationId);
-  },
-  
-  getModelSelectionPermission: async (): Promise<boolean> => {
+
     try {
-      const response = await fetch('/api/user/permissions/model-selection');
-      
-      if (!response.ok) {
-        return false;
-      }
-      
-      const data = await response.json();
-      return data.allowed;
-    } catch (error) {
-      console.error('Error getting model selection permission:', error);
-      return false;
+      const response = await axios.post(`${API_BASE_URL}/api/translations/upload`, formData, {
+        headers: {
+          ...authHeader(),
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message;
+    }
+  },
+
+  fetchTranslations: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/translations`, {
+        headers: authHeader(),
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message;
     }
   },
   
-  getAvailableWebTranslationServices: async (): Promise<string[]> => {
+  getDownloadUrl: (translationId: string) => {
+    return `${API_BASE_URL}/api/translations/${translationId}/download`;
+  },
+
+  login: async (username: string, password: string) => {
     try {
-      const response = await fetch('/api/translation/web-services');
-      
-      if (!response.ok) {
-        return [];
-      }
-      
-      const data = await response.json();
-      return data.services;
-    } catch (error) {
-      console.error('Error getting web translation services:', error);
-      return [];
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { username, password });
+      localStorage.setItem('token', response.data.token);
+      return response.data.user;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message;
     }
   },
-  
-  getSystemInfo: async (): Promise<any> => {
+
+  logout: async () => {
     try {
-      const response = await fetch('/api/system/info');
-      
-      if (!response.ok) {
-        return null;
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error getting system info:', error);
-      return null;
+      await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, { headers: authHeader() });
+      localStorage.removeItem('token');
+    } catch (error: any) {
+      localStorage.removeItem('token');
+      throw error.response?.data?.message || error.message;
     }
-  }
+  },
+
+  getCurrentUser: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/auth/me`, { headers: authHeader() });
+      return response.data;
+    } catch (error: any) {
+      return null; // Not authenticated
+    }
+  },
 };

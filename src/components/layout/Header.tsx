@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, X } from "lucide-react";
+import { Moon, Sun, Menu, X, User } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
 import { logout } from "@/store/slices/authSlice";
 
@@ -70,6 +70,10 @@ const Header = () => {
                 >
                   Dashboard
                 </Link>
+                <div className="flex items-center gap-2">
+                  <User size={16} className="text-primary" />
+                  <span className="text-sm font-medium">{user.username || user.email}</span>
+                </div>
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
@@ -144,6 +148,10 @@ const Header = () => {
                   >
                     Dashboard
                   </Link>
+                  <div className="flex items-center gap-2 py-2">
+                    <User size={16} className="text-primary" />
+                    <span className="text-sm font-medium">{user.username || user.email}</span>
+                  </div>
                   <Button
                     variant="ghost"
                     onClick={handleLogout}

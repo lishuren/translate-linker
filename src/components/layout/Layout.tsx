@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import Header from "./Header";
 import Footer from "./Footer";
@@ -8,9 +8,17 @@ import { useAppSelector } from "@/hooks/use-redux";
 
 const Layout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitionStage, setTransitionStage] = useState("fadeIn");
   const { user } = useAppSelector((state) => state.auth);
+
+  // Redirect to dashboard if logged in and on home page
+  useEffect(() => {
+    if (user?.isLoggedIn && location.pathname === "/") {
+      navigate("/dashboard");
+    }
+  }, [user, location.pathname, navigate]);
 
   useEffect(() => {
     if (location.pathname !== displayLocation.pathname) {
