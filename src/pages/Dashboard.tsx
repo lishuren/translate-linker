@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Upload, Languages, HistoryIcon, ArrowDown, FileType, Check, AlertCircle, Loader2 } from "lucide-react";
@@ -10,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "@/hooks/use-redux";
 import { uploadDocument, fetchTranslations, setFile, setTargetLanguage, clearUpload } from "@/store/slices/translationSlice";
-import { getDownloadUrl } from "@/services/translationApi";
+import { translationApi } from "@/services/translationApi";
 import { format } from "date-fns";
 
 const LANGUAGES = [
@@ -128,7 +129,7 @@ const Dashboard = () => {
   };
 
   const handleDownload = (translationId: string) => {
-    window.location.href = getDownloadUrl(translationId);
+    window.location.href = translationApi.getDownloadUrl(translationId);
   };
 
   return (
