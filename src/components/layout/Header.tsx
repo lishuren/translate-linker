@@ -22,6 +22,11 @@ const Header = () => {
     navigate("/");
   };
 
+  const handleDashboardClick = (e) => {
+    e.preventDefault(); // Prevent default link behavior
+    navigate("/dashboard"); // Programmatically navigate
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -64,12 +69,13 @@ const Header = () => {
             </Link>
             {user?.isLoggedIn ? (
               <>
-                <Link
-                  to="/dashboard"
+                <a
+                  href="/dashboard"
+                  onClick={handleDashboardClick}
                   className="text-foreground/80 hover:text-foreground transition-colors"
                 >
                   Dashboard
-                </Link>
+                </a>
                 <div className="flex items-center gap-2">
                   <User size={16} className="text-primary" />
                   <span className="text-sm font-medium">{user.username || user.email}</span>
@@ -142,12 +148,13 @@ const Header = () => {
               </Link>
               {user?.isLoggedIn ? (
                 <>
-                  <Link
-                    to="/dashboard"
+                  <a
+                    href="/dashboard"
+                    onClick={handleDashboardClick}
                     className="block py-2 text-foreground/80 hover:text-foreground"
                   >
                     Dashboard
-                  </Link>
+                  </a>
                   <div className="flex items-center gap-2 py-2">
                     <User size={16} className="text-primary" />
                     <span className="text-sm font-medium">{user.username || user.email}</span>

@@ -10,7 +10,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain.agents import initialize_agent, Tool, AgentType
 
-from services.translation_service import TranslationService
+from services.translation_service import TranslationService, translations_db, progress_tracker
 from services.file_service import FileService
 from services.chroma_service import chroma_service
 from services.tmx_service import TMXService
@@ -40,17 +40,28 @@ class RAGTranslationService:
         
         try:
             # Update status and progress
-            await self.translation_service._update_progress(translation_id, 0.1)
+            progress_tracker[translation_id] = 0.1
+            
+            # Create initial translation record if it doesn't exist
+            if translation_id not in translations_db:
+                translations_db[translation_id] = Translation(
+                    id=translation_id,
+                    originalFileName=original_filename,
+                    targetLanguage=target_language,
+                    status=TranslationStatus.PROCESSING,
+                    createdAt=datetime.now().isoformat()
+                )
             
             # 1. Extract text from file
+            progress_tracker[translation_id] = 0.2
             document_text = await self.file_service.extract_text(file_path)
             
             # 2. Detect source language
-            await self.translation_service._update_progress(translation_id, 0.2)
+            progress_tracker[translation_id] = 0.3
             source_language = self.translation_service._detect_language(document_text)
             
             # 3. Split text into chunks
-            await self.translation_service._update_progress(translation_id, 0.3)
+            progress_tracker[translation_id] = 0.4
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap
@@ -61,17 +72,16 @@ class RAGTranslationService:
             llm = self.translation_service.get_llm(llm_provider, user_id)
             
             # 5. Set up ChromaDB for RAG
-            await self.translation_service._update_progress(translation_id, 0.4)
+            progress_tracker[translation_id] = 0.5
             
             # Get user's Chroma collection
             user_chroma_id = user_id if user_id else "default"
             chroma_db = chroma_service.create_or_get_collection(user_chroma_id)
             
             # 6. Get relevant translation memory from ChromaDB
-            await self.translation_service._update_progress(translation_id, 0.5)
+            progress_tracker[translation_id] = 0.6
             
             # 7. Create translation tool with RAG augmentation
-            await self.translation_service._update_progress(translation_id, 0.6)
             translation_tool = self._create_rag_translation_tool(
                 source_language, 
                 target_language,
@@ -80,7 +90,7 @@ class RAGTranslationService:
             )
             
             # 8. Process translation
-            await self.translation_service._update_progress(translation_id, 0.7)
+            progress_tracker[translation_id] = 0.7
             translated_chunks = []
             
             for i, doc in enumerate(docs):
@@ -110,7 +120,7 @@ class RAGTranslationService:
                 
                 # Update progress for each chunk
                 progress = 0.7 + (0.2 * ((i + 1) / len(docs)))
-                await self.translation_service._update_progress(translation_id, progress)
+                progress_tracker[translation_id] = progress
             
             # 9. Combine translated chunks
             final_translation = "\n\n".join(translated_chunks)
@@ -168,15 +178,19 @@ class RAGTranslationService:
                 confidenceScore=confidence_score
             )
             
-            await self.translation_service._update_translation_status(
-                translation_id,
-                TranslationStatus.COMPLETED,
-                f"/api/translation/download/{translation_id}",
-                processing_details=processing_details
+            # Update the translation status in the database
+            translations_db[translation_id] = Translation(
+                id=translation_id,
+                originalFileName=original_filename,
+                targetLanguage=target_language,
+                status=TranslationStatus.COMPLETED,
+                downloadUrl=f"/api/translation/download/{translation_id}",
+                createdAt=translations_db[translation_id].createdAt,
+                processingDetails=processing_details
             )
             
             # Final progress update
-            await self.translation_service._update_progress(translation_id, 1.0)
+            progress_tracker[translation_id] = 1.0
             
             # Save metadata
             await self.file_service.save_metadata(translation_id, {
@@ -196,10 +210,13 @@ class RAGTranslationService:
         except Exception as e:
             # Update status to failed
             error_message = str(e)
-            await self.translation_service._update_translation_status(
-                translation_id,
-                TranslationStatus.FAILED,
-                error_message=error_message
+            translations_db[translation_id] = Translation(
+                id=translation_id,
+                originalFileName=original_filename,
+                targetLanguage=target_language,
+                status=TranslationStatus.FAILED,
+                createdAt=translations_db[translation_id].createdAt if translation_id in translations_db else datetime.now().isoformat(),
+                errorMessage=error_message
             )
             
             # Save error metadata
@@ -258,4 +275,3 @@ class RAGTranslationService:
 
 # Global RAG translation service instance
 rag_translation_service = RAGTranslationService()
-

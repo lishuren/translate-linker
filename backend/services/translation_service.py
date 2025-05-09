@@ -1,4 +1,3 @@
-
 import os
 import json
 import time
@@ -272,8 +271,200 @@ class TranslationService:
                 "timestamp": datetime.now().isoformat()
             })
     
-    # ... keep existing code (methods like _update_progress, _detect_language, etc.)
+    async def _update_progress(self, translation_id: str, progress: float) -> None:
+        """Update the progress of a translation task"""
+        progress_tracker[translation_id] = progress
+        # In a real implementation, this might send updates to clients via websockets
     
+    async def _update_translation_status(
+        self, 
+        translation_id: str, 
+        status: TranslationStatus, 
+        download_url: str = None,
+        error_message: str = None,
+        processing_details: ProcessingDetails = None
+    ) -> None:
+        """Update the status of a translation"""
+        if translation_id not in translations_db:
+            # Initialize translation if it doesn't exist
+            translations_db[translation_id] = Translation(
+                id=translation_id,
+                originalFileName="unknown",
+                targetLanguage="unknown",
+                status=status,
+                createdAt=datetime.now().isoformat()
+            )
+        
+        # Update existing translation
+        translation = translations_db[translation_id]
+        
+        # Create updated translation with new status
+        translations_db[translation_id] = Translation(
+            id=translation_id,
+            originalFileName=translation.originalFileName,
+            targetLanguage=translation.targetLanguage,
+            status=status,
+            downloadUrl=download_url,
+            createdAt=translation.createdAt,
+            errorMessage=error_message,
+            processingDetails=processing_details
+        )
+    
+    def _detect_language(self, text: str) -> str:
+        """
+        Detect the language of the text
+        This is a placeholder for real language detection
+        """
+        # Simple language detection logic for demo
+        # In a real implementation, would use langdetect or similar
+        
+        word_count = len(text.split())
+        if word_count < 10:
+            return "en"  # Default to English for very short texts
+        
+        # Count common words in different languages to guess
+        en_words = ["the", "and", "to", "of", "in", "is", "that"]
+        es_words = ["el", "la", "de", "en", "y", "es", "que"]
+        fr_words = ["le", "la", "de", "et", "en", "est", "que"]
+        
+        en_count = sum(1 for word in text.lower().split() if word in en_words)
+        es_count = sum(1 for word in text.lower().split() if word in es_words)
+        fr_count = sum(1 for word in text.lower().split() if word in fr_words)
+        
+        if en_count > es_count and en_count > fr_count:
+            return "en"
+        elif es_count > en_count and es_count > fr_count:
+            return "es"
+        elif fr_count > en_count and fr_count > es_count:
+            return "fr"
+        else:
+            return "en"  # Default to English if unsure
+    
+    async def _create_vector_store(self, docs: List[Document], store_dir: str) -> Any:
+        """Create a vector store from documents for RAG"""
+        os.makedirs(store_dir, exist_ok=True)
+        
+        # Use HuggingFace embeddings
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-mpnet-base-v2"
+        )
+        
+        # Create vector store
+        vector_store = FAISS.from_documents(docs, embeddings)
+        
+        # Save the vector store for future use
+        vector_store.save_local(store_dir)
+        
+        return vector_store
+    
+    async def _translate_with_agent(
+        self, 
+        agent: Any, 
+        docs: List[Document],
+        source_language: str,
+        target_language: str
+    ) -> List[str]:
+        """Translate document chunks using the translation agent"""
+        translated_chunks = []
+        
+        for chunk in docs:
+            # Create a prompt for the agent
+            prompt = f"""
+            Translate the following text from {source_language} to {target_language}.
+            Maintain the original formatting as much as possible.
+            Text to translate: {chunk.page_content}
+            """
+            
+            # Use the agent to translate
+            result = await asyncio.to_thread(
+                agent.run,
+                prompt
+            )
+            
+            translated_chunks.append(result)
+        
+        return translated_chunks
+    
+    def _calculate_confidence_score(self, source_language: str, target_language: str, chunk_count: int) -> float:
+        """Calculate a confidence score for the translation"""
+        # Simple confidence score calculation for demo
+        # In a real implementation, would use more sophisticated metrics
+        
+        base_score = 0.85  # Start with a base confidence
+        
+        # Adjust based on language pair
+        common_pairs = [("en", "es"), ("en", "fr"), ("en", "de"), ("en", "it")]
+        if (source_language, target_language) in common_pairs or (target_language, source_language) in common_pairs:
+            base_score += 0.05
+        
+        # Adjust based on document size
+        if chunk_count < 5:
+            base_score += 0.05
+        elif chunk_count > 20:
+            base_score -= 0.05
+        
+        return min(0.99, max(0.5, base_score))  # Keep between 0.5 and 0.99
+    
+    async def get_translation_status(self, translation_id: str) -> Dict[str, Any]:
+        """Get the status of a translation task"""
+        if translation_id in translations_db:
+            translation = translations_db[translation_id]
+            progress = progress_tracker.get(translation_id, 0)
+            
+            return {
+                "translation": translation.dict(),
+                "progress": progress
+            }
+        return None
+    
+    async def get_translation_file(self, translation_id: str) -> Optional[str]:
+        """Get the path to the translated file"""
+        # Check if translation exists and is completed
+        if (translation_id in translations_db and 
+            translations_db[translation_id].status == TranslationStatus.COMPLETED):
+            
+            # Get the original filename
+            original_filename = translations_db[translation_id].originalFileName
+            
+            # Build the path to the translated file
+            return os.path.join("translations", f"{translation_id}_{original_filename}")
+        
+        return None
+    
+    async def get_all_translations(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all translations, optionally filtered by user ID"""
+        all_translations = []
+        
+        for t_id, translation in translations_db.items():
+            # In a real implementation, would filter by user_id in database query
+            all_translations.append(translation.dict())
+        
+        # Sort by creation date, newest first
+        all_translations.sort(key=lambda t: t.get('createdAt', ''), reverse=True)
+        
+        return all_translations
+    
+    async def is_model_selection_allowed(self, user_id: Optional[str] = None) -> bool:
+        """Check if the user is allowed to select LLM models"""
+        if user_id:
+            return self.user_settings_service.is_model_selection_allowed(user_id)
+        return self.allow_user_model_selection
+    
+    async def get_available_web_translation_services(self) -> List[str]:
+        """Get a list of available web translation services"""
+        services = ["none"]
+        
+        if os.getenv("GOOGLE_TRANSLATE_API_KEY"):
+            services.append("google")
+            
+        if os.getenv("MICROSOFT_TRANSLATOR_API_KEY"):
+            services.append("microsoft")
+            
+        if os.getenv("DEEPL_API_KEY"):
+            services.append("deepl")
+            
+        return services
+
     async def _setup_translation_agent(self, source_language: str, target_language: str, vector_store: Any, llm: Any) -> Any:
         """Set up the LangChain agent for translation using the provided LLM"""
         # Create a translation chain
@@ -317,26 +508,3 @@ class TranslationService:
         )
         
         return agent
-    
-    # ... keep existing code (all other existing methods)
-    
-    async def is_model_selection_allowed(self, user_id: Optional[str] = None) -> bool:
-        """Check if the user is allowed to select LLM models"""
-        if user_id:
-            return self.user_settings_service.is_model_selection_allowed(user_id)
-        return self.allow_user_model_selection
-    
-    async def get_available_web_translation_services(self) -> List[str]:
-        """Get a list of available web translation services"""
-        services = ["none"]
-        
-        if os.getenv("GOOGLE_TRANSLATE_API_KEY"):
-            services.append("google")
-            
-        if os.getenv("MICROSOFT_TRANSLATOR_API_KEY"):
-            services.append("microsoft")
-            
-        if os.getenv("DEEPL_API_KEY"):
-            services.append("deepl")
-            
-        return services
