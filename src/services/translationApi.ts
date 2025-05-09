@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import config from '../config/environment';
 
@@ -80,7 +79,11 @@ export const authApi = {
         isLoggedIn: true
       };
     } catch (error: any) {
-      throw error.response?.data?.message || error.message;
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw error.response?.data?.message || error.message;
+      }
     }
   },
 
@@ -115,7 +118,11 @@ export const authApi = {
       );
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.message || error.message;
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw error.response?.data?.message || error.message;
+      }
     }
   }
 };
