@@ -80,7 +80,7 @@ export const fetchTranslations = createAsyncThunk(
   "translation/fetchAll", 
   async (_, thunkAPI) => {
     try {
-      const translations = await translationApi.fetchTranslations();
+      const translations = await translationApi.fetchTranslationHistory();
       // Convert string statuses to enum if needed
       return translations.map(t => ({
         ...t,
