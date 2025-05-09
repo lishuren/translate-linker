@@ -10,10 +10,13 @@ const authHeader = () => {
 };
 
 export const translationApi = {
-  uploadDocument: async (file: File, targetLanguage: string) => {
+  uploadDocument: async (file: File, targetLanguage: string, llmProvider?: string) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
+    if (llmProvider) {
+      formData.append('llmProvider', llmProvider);
+    }
 
     try {
       const response = await axios.post(`${API_BASE_URL}/translation/upload`, formData, {
@@ -24,23 +27,45 @@ export const translationApi = {
       });
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.message || error.message;
+      throw error.response?.data?.detail || error.message;
     }
   },
 
-  fetchTranslations: async () => {
+  fetchTranslationHistory: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/translation`, {
+      const response = await axios.get(`${API_BASE_URL}/translation/history`, {
         headers: authHeader(),
       });
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.message || error.message;
+      throw error.response?.data?.detail || error.message;
+    }
+  },
+  
+  checkTranslationStatus: async (translationId: string) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/translation/status/${translationId}`, {
+        headers: authHeader(),
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.detail || error.message;
     }
   },
   
   getDownloadUrl: (translationId: string) => {
-    return `${API_BASE_URL}/translations/${translationId}/download`;
+    return `${API_BASE_URL}/translation/download/${translationId}`;
+  },
+  
+  getSystemInfo: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/config/system-info`, {
+        headers: authHeader(),
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.detail || error.message;
+    }
   },
 };
 

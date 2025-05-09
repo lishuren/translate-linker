@@ -7,19 +7,36 @@ import { Button } from "@/components/ui/button";
 import { Moon, Sun, Menu, X, User } from "lucide-react";
 import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
 import { logout } from "@/store/slices/authSlice";
+import { useToast } from "@/hooks/use-toast";
 
 const Header = () => {
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, isLoading } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleLogout = () => {
-    dispatch(logout());
-    navigate("/");
+    dispatch(logout())
+      .unwrap()
+      .then(() => {
+        navigate("/");
+        toast({
+          title: "Logged out",
+          description: "You have been successfully logged out.",
+        });
+      })
+      .catch((error) => {
+        console.error("Logout error:", error);
+        toast({
+          variant: "destructive",
+          title: "Logout failed",
+          description: "There was an issue logging out. Please try again.",
+        });
+      });
   };
 
   useEffect(() => {
@@ -77,6 +94,7 @@ const Header = () => {
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
+                  disabled={isLoading}
                   className="text-foreground/80 hover:text-foreground"
                 >
                   Logout
@@ -155,6 +173,7 @@ const Header = () => {
                   <Button
                     variant="ghost"
                     onClick={handleLogout}
+                    disabled={isLoading}
                     className="w-full justify-start py-2 text-foreground/80 hover:text-foreground"
                   >
                     Logout
