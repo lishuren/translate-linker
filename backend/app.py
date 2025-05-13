@@ -1,4 +1,3 @@
-
 import os
 import uuid
 import time
@@ -24,6 +23,7 @@ from models.translation import (
     TranslationResponse,
     TranslationStatusResponse
 )
+from models.api_key import APIKeySettings
 
 # Import routers
 from app_tmx import tmx_router
@@ -85,6 +85,18 @@ async def upload_document(
         if not is_allowed and llmProvider:
             # Get the user's configured provider instead
             llmProvider = user_settings_service.get_user_llm_provider(user_id)
+        
+        # Verify that we have an API key for the selected provider
+        api_keys = APIKeySettings.from_env()
+        if not api_keys.has_key_for_provider(llmProvider):
+            # If no API key, use a provider we do have a key for or return error
+            if not api_keys.has_key_for_provider(api_keys.default_provider):
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"No API key configured for provider '{llmProvider}' or default provider"
+                )
+            # Use the default provider instead
+            llmProvider = api_keys.default_provider
             
         # Generate unique ID for this translation
         translation_id = str(uuid.uuid4())
@@ -210,6 +222,27 @@ async def get_system_info():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")
 
+@app.get("/api/config/api-key-status")
+async def check_api_key_status():
+    """Check if API keys are configured for each provider"""
+    api_keys = APIKeySettings.from_env()
+    
+    # Check each provider
+    status = {
+        "openai": api_keys.has_key_for_provider("openai"),
+        "anthropic": api_keys.has_key_for_provider("anthropic"),
+        "google": api_keys.has_key_for_provider("google"),
+        "groq": api_keys.has_key_for_provider("groq"),
+        "cohere": api_keys.has_key_for_provider("cohere"),
+        "huggingface": api_keys.has_key_for_provider("huggingface"),
+        "deepseek": api_keys.has_key_for_provider("deepseek"),
+        "siliconflow": api_keys.has_key_for_provider("siliconflow"),
+        "default_provider": api_keys.default_provider,
+        "has_default_key": api_keys.has_key_for_provider(api_keys.default_provider)
+    }
+    
+    return {"api_key_status": status}
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("DEBUG", "False").lower() == "true"
@@ -220,4 +253,3 @@ if __name__ == "__main__":
         port=port,
         reload=debug
     )
-

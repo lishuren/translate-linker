@@ -24,6 +24,7 @@ from langchain.agents import initialize_agent, Tool, AgentType
 
 # Local imports
 from models.translation import Translation, TranslationStatus, ProcessingDetails
+from models.api_key import APIKeySettings
 from services.file_service import FileService
 from services.third_party_translation_service import ThirdPartyTranslationService
 from services.user_settings_service import UserSettingsService
@@ -46,6 +47,7 @@ class TranslationService:
         self.vector_store_path = os.getenv("VECTOR_STORE_PATH", "./vector_stores")
         self.default_model = os.getenv("DEFAULT_LLM_MODEL", "openai")
         self.allow_user_model_selection = os.getenv("ALLOW_USER_MODEL_SELECTION", "true").lower() == "true"
+        self.api_keys = APIKeySettings.from_env()
         os.makedirs(self.vector_store_path, exist_ok=True)
     
     def get_llm(self, provider: str = None, user_id: Optional[str] = None):
@@ -62,35 +64,50 @@ class TranslationService:
         provider = provider or self.default_model
         provider = provider.lower()
         
+        # Get API key for the selected provider
+        api_key = self.api_keys.get_key_for_provider(provider)
+        
+        # If we don't have an API key for the provider, default to a provider we do have
+        if not api_key:
+            print(f"Warning: No API key for provider {provider}. Using default provider.")
+            provider = self.default_model
+            api_key = self.api_keys.get_key_for_provider(provider)
+        
         if provider == "openai" or provider == "chatgpt":
             return ChatOpenAI(
                 model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                openai_api_key=api_key
             )
         elif provider == "anthropic" or provider == "claude":
             return ChatAnthropic(
                 model_name=os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-sonnet-20240229"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                anthropic_api_key=api_key
             )
         elif provider == "google" or provider == "vertex" or provider == "grok":
             return ChatVertexAI(
                 model_name=os.getenv("GOOGLE_MODEL_NAME", "gemini-pro"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                google_api_key=api_key
             )
         elif provider == "groq":
             return ChatGroq(
                 model_name=os.getenv("GROQ_MODEL_NAME", "llama-3-70b-8192"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                groq_api_key=api_key
             )
         elif provider == "cohere":
             return ChatCohere(
                 model=os.getenv("COHERE_MODEL_NAME", "command"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                cohere_api_key=api_key
             )
         elif provider == "huggingface":
             return ChatHuggingFace(
                 model_id=os.getenv("HUGGINGFACE_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                huggingfacehub_api_token=api_key
             )
         elif provider == "deepseek":
             # Using LangChain's OpenAI interface with DeepSeek endpoint
@@ -98,13 +115,14 @@ class TranslationService:
                 model=os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat"),
                 temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
                 openai_api_base=os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"),
-                openai_api_key=os.getenv("DEEPSEEK_API_KEY")
+                openai_api_key=api_key
             )
         else:
             # Default to OpenAI
             return ChatOpenAI(
                 model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1))
+                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                openai_api_key=api_key
             )
     
     async def process_translation(

@@ -1,4 +1,3 @@
-
 import os
 import time
 from typing import Dict, List, Optional, Any
@@ -15,6 +14,7 @@ from services.file_service import FileService
 from services.chroma_service import chroma_service
 from services.tmx_service import TMXService
 from models.translation import Translation, TranslationStatus, ProcessingDetails
+from models.api_key import APIKeySettings
 
 class RAGTranslationService:
     """Service for processing translations with RAG capabilities"""
@@ -25,6 +25,7 @@ class RAGTranslationService:
         self.tmx_service = TMXService()
         self.chunk_size = int(os.getenv("CHUNK_SIZE", 1000))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", 200))
+        self.api_keys = APIKeySettings.from_env()
     
     async def process_translation_with_rag(
         self, 
