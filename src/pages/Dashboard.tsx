@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Upload, Languages, HistoryIcon, ArrowDown, FileType, Check, AlertCircle, Loader2 } from "lucide-react";
@@ -342,23 +341,45 @@ const Dashboard = () => {
                             <Check className="h-4 w-4 text-green-500" />
                           ) : translation.status === "processing" ? (
                             <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                          ) : translation.status === "pending" ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                           ) : translation.status === "failed" ? (
                             <AlertCircle className="h-4 w-4 text-destructive" />
                           ) : (
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           )}
-                          <span className="text-sm capitalize">
+                          <span className={`text-sm capitalize ${
+                            translation.status === "failed" ? "text-destructive" : 
+                            translation.status === "completed" ? "text-green-500" : ""
+                          }`}>
                             {translation.status}
                           </span>
                         </div>
 
-                        {translation.status === "completed" && (
+                        {translation.status === "completed" && translation.downloadUrl && (
                           <Button 
                             size="sm" 
                             variant="outline" 
                             onClick={() => handleDownload(translation.id)}
                           >
                             Download
+                          </Button>
+                        )}
+                        
+                        {translation.status === "failed" && translation.errorMessage && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              toast({
+                                title: "Translation Error",
+                                description: translation.errorMessage || "Unknown error occurred",
+                                variant: "destructive",
+                              });
+                            }}
+                          >
+                            View Error
                           </Button>
                         )}
                       </div>

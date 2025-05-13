@@ -71,10 +71,11 @@ export const uploadDocument = createAsyncThunk(
       
       console.log("Upload response:", translation);
       
-      // Convert string status to enum if needed
+      // Make sure status is properly handled
       return {
         ...translation,
-        status: translation.status as TranslationStatus
+        // Don't convert to enum yet, as we'll handle that in the reducer
+        status: translation.status 
       } as Translation;
     } catch (error: any) {
       console.error("Upload error in thunk:", error);
@@ -93,10 +94,9 @@ export const fetchTranslations = createAsyncThunk(
       
       console.log("Fetched translations:", translations);
       
-      // Convert string statuses to enum if needed
+      // Don't force status to enum conversion here, handle in reducer
       return translations.map(t => ({
-        ...t,
-        status: t.status as TranslationStatus
+        ...t
       })) as Translation[];
     } catch (error: any) {
       console.error("Fetch error in thunk:", error);
@@ -124,6 +124,12 @@ const translationSlice = createSlice({
     },
     clearUpload: (state) => {
       state.currentUpload = initialState.currentUpload;
+    },
+    updateTranslationStatus: (state, action: PayloadAction<{ id: string, status: TranslationStatus }>) => {
+      const translation = state.translations.find(t => t.id === action.payload.id);
+      if (translation) {
+        translation.status = action.payload.status;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -136,7 +142,14 @@ const translationSlice = createSlice({
     builder.addCase(uploadDocument.fulfilled, (state, action) => {
       console.log("Upload fulfilled:", action.payload);
       state.currentUpload.status = "success";
-      state.translations.unshift(action.payload); // Add to beginning of array for immediate visibility
+      
+      // Add the new translation to the beginning of the array for immediate visibility
+      // Ensure the status is properly handled
+      const newTranslation = {
+        ...action.payload,
+        status: action.payload.status // Keep the status from the server
+      };
+      state.translations.unshift(newTranslation);
     });
     builder.addCase(uploadDocument.rejected, (state, action) => {
       console.log("Upload rejected:", action.payload);
@@ -151,7 +164,12 @@ const translationSlice = createSlice({
     });
     builder.addCase(fetchTranslations.fulfilled, (state, action) => {
       state.status = "success";
-      state.translations = action.payload;
+      
+      // Ensure statuses are properly mapped
+      state.translations = action.payload.map(translation => ({
+        ...translation,
+        status: translation.status // Keep the status from the server
+      }));
     });
     builder.addCase(fetchTranslations.rejected, (state, action) => {
       state.status = "error";
@@ -160,6 +178,6 @@ const translationSlice = createSlice({
   }
 });
 
-export const { clearError, setFile, setTargetLanguage, clearUpload } = translationSlice.actions;
+export const { clearError, setFile, setTargetLanguage, clearUpload, updateTranslationStatus } = translationSlice.actions;
 
 export default translationSlice.reducer;
