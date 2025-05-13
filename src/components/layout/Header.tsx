@@ -19,7 +19,8 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    e.preventDefault(); // Prevent default link behavior
     dispatch(logout())
       .unwrap()
       .then(() => {
