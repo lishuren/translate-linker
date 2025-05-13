@@ -88,7 +88,9 @@ const Dashboard = () => {
     dispatch(setFile(file));
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent form submission default behavior
+    
     if (!currentUpload.file) {
       toast({
         title: "No File Selected",
@@ -107,22 +109,24 @@ const Dashboard = () => {
       return;
     }
 
-    await dispatch(uploadDocument({
-      file: currentUpload.file,
-      targetLanguage: currentUpload.targetLanguage,
-    }));
-
-    if (currentUpload.status === "success") {
+    try {
+      await dispatch(uploadDocument({
+        file: currentUpload.file,
+        targetLanguage: currentUpload.targetLanguage,
+      })).unwrap();
+      
       toast({
         title: "Document Uploaded",
         description: "Your document is being translated. You'll receive an email when it's ready.",
       });
+      
       dispatch(clearUpload());
+      dispatch(fetchTranslations()); // Refresh translations list
       setActiveTab("history");
-    } else if (currentUpload.status === "error") {
+    } catch (error: any) {
       toast({
         title: "Upload Failed",
-        description: currentUpload.error || "Failed to upload document. Please try again.",
+        description: error?.message || "Failed to upload document. Please try again.",
         variant: "destructive",
       });
     }
@@ -166,96 +170,99 @@ const Dashboard = () => {
                 Upload a document and select the target language for translation.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div 
-                className={`border-2 border-dashed rounded-lg p-8 transition-all
-                  ${dragActive ? 'border-primary bg-primary/5' : 'border-border'} 
-                  ${currentUpload.file ? 'bg-secondary/30' : ''}`}
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-              >
-                <div className="flex flex-col items-center justify-center text-center">
-                  {currentUpload.file ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <FileType className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium mb-1">{currentUpload.file.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {(currentUpload.file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => dispatch(setFile(null))}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                        <Upload className="h-6 w-6 text-primary" />
-                      </div>
-                      <h3 className="text-lg font-medium mb-2">Drop your document here</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Supports PDF, Word, Excel, PowerPoint, and plain text files
-                      </p>
-                      <Input
-                        id="file-upload"
-                        type="file"
-                        className="hidden"
-                        onChange={handleFileInput}
-                      />
-                      <Button asChild variant="outline">
-                        <label htmlFor="file-upload" className="cursor-pointer">
-                          Browse files
-                        </label>
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="target-language">Target Language</Label>
-                <Select 
-                  value={currentUpload.targetLanguage} 
-                  onValueChange={(value) => dispatch(setTargetLanguage(value))}
+            <form onSubmit={handleUpload}>
+              <CardContent className="space-y-6">
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-8 transition-all
+                    ${dragActive ? 'border-primary bg-primary/5' : 'border-border'} 
+                    ${currentUpload.file ? 'bg-secondary/30' : ''}`}
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
                 >
-                  <SelectTrigger id="target-language" className="w-full">
-                    <SelectValue placeholder="Select a language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((language) => (
-                      <SelectItem key={language.code} value={language.code}>
-                        {language.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                onClick={handleUpload} 
-                className="w-full"
-                disabled={currentUpload.status === "uploading" || !currentUpload.file}
-              >
-                {currentUpload.status === "uploading" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  "Translate Document"
-                )}
-              </Button>
-            </CardFooter>
+                  <div className="flex flex-col items-center justify-center text-center">
+                    {currentUpload.file ? (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <FileType className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">{currentUpload.file.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {(currentUpload.file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => dispatch(setFile(null))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                          <Upload className="h-6 w-6 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-medium mb-2">Drop your document here</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Supports PDF, Word, Excel, PowerPoint, and plain text files
+                        </p>
+                        <Input
+                          id="file-upload"
+                          type="file"
+                          className="hidden"
+                          onChange={handleFileInput}
+                        />
+                        <Button type="button" asChild variant="outline">
+                          <label htmlFor="file-upload" className="cursor-pointer">
+                            Browse files
+                          </label>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="target-language">Target Language</Label>
+                  <Select 
+                    value={currentUpload.targetLanguage} 
+                    onValueChange={(value) => dispatch(setTargetLanguage(value))}
+                  >
+                    <SelectTrigger id="target-language" className="w-full">
+                      <SelectValue placeholder="Select a language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGES.map((language) => (
+                        <SelectItem key={language.code} value={language.code}>
+                          {language.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  type="submit"
+                  className="w-full"
+                  disabled={currentUpload.status === "uploading" || !currentUpload.file}
+                >
+                  {currentUpload.status === "uploading" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    "Translate Document"
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
           </Card>
         </TabsContent>
 

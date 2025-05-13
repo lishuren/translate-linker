@@ -71,7 +71,7 @@ export const uploadDocument = createAsyncThunk(
         status: translation.status as TranslationStatus
       } as Translation;
     } catch (error: any) {
-      return thunkAPI.rejectWithValue(error.message);
+      return thunkAPI.rejectWithValue(error.message || "Failed to upload document");
     }
   }
 );
@@ -87,7 +87,7 @@ export const fetchTranslations = createAsyncThunk(
         status: t.status as TranslationStatus
       })) as Translation[];
     } catch (error: any) {
-      return thunkAPI.rejectWithValue(error.message);
+      return thunkAPI.rejectWithValue(error.message || "Failed to fetch translations");
     }
   }
 );
@@ -121,7 +121,7 @@ const translationSlice = createSlice({
     });
     builder.addCase(uploadDocument.fulfilled, (state, action) => {
       state.currentUpload.status = "success";
-      state.translations.push(action.payload);
+      state.translations.unshift(action.payload); // Add to beginning of array for immediate visibility
     });
     builder.addCase(uploadDocument.rejected, (state, action) => {
       state.currentUpload.status = "error";
