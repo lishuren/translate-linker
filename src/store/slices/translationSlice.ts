@@ -64,13 +64,20 @@ export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
   async ({ file, targetLanguage }: { file: File; targetLanguage: string }, thunkAPI) => {
     try {
-      const translation = await translationApi.uploadDocument(file, targetLanguage);
+      console.log("Uploading document:", file.name, "to language:", targetLanguage);
+      // First make sure we're using the right API
+      const response = await translationApi.uploadDocument(file, targetLanguage);
+      const translation = response.translation;
+      
+      console.log("Upload response:", translation);
+      
       // Convert string status to enum if needed
       return {
         ...translation,
         status: translation.status as TranslationStatus
       } as Translation;
     } catch (error: any) {
+      console.error("Upload error in thunk:", error);
       return thunkAPI.rejectWithValue(error.message || "Failed to upload document");
     }
   }
@@ -80,13 +87,19 @@ export const fetchTranslations = createAsyncThunk(
   "translation/fetchAll", 
   async (_, thunkAPI) => {
     try {
-      const translations = await translationApi.fetchTranslationHistory();
+      console.log("Fetching translations");
+      const response = await translationApi.fetchTranslationHistory();
+      const translations = response.translations;
+      
+      console.log("Fetched translations:", translations);
+      
       // Convert string statuses to enum if needed
       return translations.map(t => ({
         ...t,
         status: t.status as TranslationStatus
       })) as Translation[];
     } catch (error: any) {
+      console.error("Fetch error in thunk:", error);
       return thunkAPI.rejectWithValue(error.message || "Failed to fetch translations");
     }
   }
@@ -118,12 +131,15 @@ const translationSlice = createSlice({
     builder.addCase(uploadDocument.pending, (state) => {
       state.currentUpload.status = "uploading";
       state.error = null;
+      console.log("Upload pending");
     });
     builder.addCase(uploadDocument.fulfilled, (state, action) => {
+      console.log("Upload fulfilled:", action.payload);
       state.currentUpload.status = "success";
       state.translations.unshift(action.payload); // Add to beginning of array for immediate visibility
     });
     builder.addCase(uploadDocument.rejected, (state, action) => {
+      console.log("Upload rejected:", action.payload);
       state.currentUpload.status = "error";
       state.currentUpload.error = action.payload as string;
     });

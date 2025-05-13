@@ -39,7 +39,14 @@ const Dashboard = () => {
     dispatch(fetchTranslations());
   }, [dispatch]);
 
-  const handleDrag = (e: React.DragEvent) => {
+  // Add debug logs to monitor state changes
+  useEffect(() => {
+    console.log("Current upload status:", currentUpload.status);
+    console.log("Current file:", currentUpload.file?.name || "No file");
+    console.log("Current target language:", currentUpload.targetLanguage);
+  }, [currentUpload]);
+
+  const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
@@ -49,7 +56,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -58,13 +65,13 @@ const Dashboard = () => {
     }
   };
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = (e) => {
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = (file) => {
     const validTypes = [
       'application/pdf',
       'application/msword',
@@ -88,8 +95,9 @@ const Dashboard = () => {
     dispatch(setFile(file));
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleUpload = async (e) => {
     e.preventDefault(); // Prevent form submission default behavior
+    console.log("Starting upload process");
     
     if (!currentUpload.file) {
       toast({
@@ -110,6 +118,7 @@ const Dashboard = () => {
     }
 
     try {
+      console.log("Dispatching uploadDocument action");
       await dispatch(uploadDocument({
         file: currentUpload.file,
         targetLanguage: currentUpload.targetLanguage,
@@ -120,10 +129,17 @@ const Dashboard = () => {
         description: "Your document is being translated. You'll receive an email when it's ready.",
       });
       
+      // Clear the upload form
       dispatch(clearUpload());
-      dispatch(fetchTranslations()); // Refresh translations list
+      
+      // Refresh translations list
+      await dispatch(fetchTranslations());
+      
+      // Switch to history tab
       setActiveTab("history");
-    } catch (error: any) {
+      
+    } catch (error) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload Failed",
         description: error?.message || "Failed to upload document. Please try again.",
@@ -132,7 +148,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleDownload = (translationId: string) => {
+  const handleDownload = (translationId) => {
     window.location.href = translationApi.getDownloadUrl(translationId);
   };
 
@@ -150,7 +166,7 @@ const Dashboard = () => {
         </p>
       </motion.div>
 
-      <Tabs defaultValue="upload" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid grid-cols-2 w-full max-w-md">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload size={16} />
