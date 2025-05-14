@@ -48,6 +48,7 @@ export const translationApi = {
       });
       return response.data;
     } catch (error: any) {
+      console.error("Error fetching translation history:", error);
       throw error.response?.data?.detail || error.message;
     }
   },

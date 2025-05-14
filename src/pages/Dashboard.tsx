@@ -1,15 +1,27 @@
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Upload, Languages, HistoryIcon, ArrowDown, FileType, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, Languages, HistoryIcon, ArrowDown, FileType, Check, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "@/hooks/use-redux";
-import { uploadDocument, fetchTranslations, setFile, setTargetLanguage, clearUpload } from "@/store/slices/translationSlice";
+import { uploadDocument, fetchTranslations, setFile, setTargetLanguage, clearUpload, deleteTranslation } from "@/store/slices/translationSlice";
 import { translationApi } from "@/services/translationApi";
 import { format } from "date-fns";
 
@@ -33,6 +45,7 @@ const Dashboard = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { translations, currentUpload, status } = useAppSelector((state) => state.translation);
   const [dragActive, setDragActive] = useState(false);
+  const [translationToDelete, setTranslationToDelete] = useState(null);
 
   useEffect(() => {
     dispatch(fetchTranslations());
@@ -149,6 +162,23 @@ const Dashboard = () => {
 
   const handleDownload = (translationId) => {
     window.location.href = translationApi.getDownloadUrl(translationId);
+  };
+
+  const handleDeleteTranslation = async (translationId) => {
+    try {
+      await dispatch(deleteTranslation(translationId)).unwrap();
+      toast({
+        title: "Translation Deleted",
+        description: "The translation has been deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete translation. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -382,6 +412,33 @@ const Dashboard = () => {
                             View Error
                           </Button>
                         )}
+                        
+                        {/* Add delete button with confirmation dialog */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-muted-foreground border-muted hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Translation</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this translation? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteTranslation(translation.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   ))}
