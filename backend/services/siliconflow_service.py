@@ -54,12 +54,19 @@ class SiliconFlowService:
                     "temperature": self.temperature,
                 }
                 
+                # Debug info
+                print(f"SiliconFlow API URL: {url}")
+                print(f"SiliconFlow Model: {self.model_name}")
+                print(f"SiliconFlow API Base: {self.api_base}")
+                print(f"SiliconFlow API Key configured: {bool(self.api_key)}")
+                
                 async with session.post(url, headers=headers, json=payload) as response:
                     if response.status == 200:
                         data = await response.json()
                         return data.get("choices", [{}])[0].get("message", {}).get("content", "")
                     else:
                         error_text = await response.text()
+                        print(f"SiliconFlow API error ({response.status}): {error_text}")
                         raise Exception(f"SiliconFlow API error ({response.status}): {error_text}")
                         
         except Exception as e:

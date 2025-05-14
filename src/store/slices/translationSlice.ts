@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { translationApi } from "../../services/translationApi";
+import { toast } from "sonner";
 
 export enum TranslationStatus {
   PENDING = "pending",
@@ -64,6 +65,21 @@ export const uploadDocument = createAsyncThunk(
   async ({ file, targetLanguage, llmProvider }: { file: File; targetLanguage: string; llmProvider?: string }, thunkAPI) => {
     try {
       console.log("Uploading document:", file.name, "to language:", targetLanguage, "using provider:", llmProvider || "default");
+      
+      // Check if any LLM providers are available
+      const availableProviders = await translationApi.getAvailableLlmProviders();
+      if (availableProviders.length === 0) {
+        console.warn("No LLM providers available with API keys configured");
+        toast.error("No LLM provider API keys configured. Please set up at least one provider.");
+        return thunkAPI.rejectWithValue("No API keys configured. Please set up at least one LLM provider API key.");
+      }
+      
+      // If the selected provider isn't available, use the first available one
+      if (llmProvider && !availableProviders.includes(llmProvider)) {
+        console.warn(`Selected provider ${llmProvider} is not available, using ${availableProviders[0]}`);
+        llmProvider = availableProviders[0];
+      }
+      
       // First make sure we're using the right API
       const response = await translationApi.uploadDocument(file, targetLanguage, llmProvider);
       const translation = response.translation;
@@ -78,6 +94,7 @@ export const uploadDocument = createAsyncThunk(
       } as Translation;
     } catch (error: any) {
       console.error("Upload error in thunk:", error);
+      toast.error(error.message || "Failed to upload document");
       return thunkAPI.rejectWithValue(error.message || "Failed to upload document");
     }
   }
@@ -152,11 +169,17 @@ const translationSlice = createSlice({
         status: action.payload.status // Keep the status from the server
       };
       state.translations.unshift(newTranslation);
+      
+      // Show success toast
+      toast.success(`Document uploaded successfully. Translation in progress.`);
     });
     builder.addCase(uploadDocument.rejected, (state, action) => {
       console.log("Upload rejected:", action.payload);
       state.currentUpload.status = "error";
       state.currentUpload.error = action.payload as string;
+      
+      // Show error toast
+      toast.error(action.payload as string || "Unknown error during upload");
     });
     
     // Fetch all translations

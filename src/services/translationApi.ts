@@ -18,6 +18,7 @@ export const translationApi = {
     }
 
     try {
+      console.log(`Uploading document with provider: ${llmProvider || 'default'}`);
       const response = await axios.post(`${API_BASE_URL}/translation/upload`, formData, {
         headers: {
           ...authHeader(),
@@ -26,10 +27,16 @@ export const translationApi = {
       });
       return response.data;
     } catch (error: any) {
-      if (error.response?.data?.detail && error.response.data.detail.includes("No API keys configured")) {
-        throw new Error("No API keys configured. Please set up at least one LLM provider API key.");
+      console.error("Translation API error:", error?.response?.data || error);
+      
+      // Check for specific error messages
+      if (error.response?.data?.detail) {
+        if (error.response.data.detail.includes("No API keys configured")) {
+          throw new Error("No API keys configured. Please set up at least one LLM provider API key.");
+        }
+        throw new Error(error.response.data.detail);
       }
-      throw error.response?.data?.detail || error.message;
+      throw error.message || "An unknown error occurred";
     }
   },
 
@@ -76,8 +83,10 @@ export const translationApi = {
       const response = await axios.get(`${API_BASE_URL}/config/api-key-status`, {
         headers: authHeader(),
       });
+      console.log("API key status response:", response.data);
       return response.data;
     } catch (error: any) {
+      console.error("Error checking API key status:", error?.response?.data || error);
       throw error.response?.data?.detail || error.message;
     }
   },
@@ -87,15 +96,18 @@ export const translationApi = {
     try {
       const { api_key_status } = await translationApi.checkApiKeyStatus();
       
+      console.log("Available providers check:", api_key_status);
+      
       // Filter out non-boolean values and only include providers with keys
       const providers = Object.entries(api_key_status)
         .filter(([key, value]) => 
           typeof value === 'boolean' && 
           value === true && 
-          !['has_default_key'].includes(key)
+          !['has_default_key', 'default_provider', 'configured_providers_count'].includes(key)
         )
         .map(([key]) => key);
       
+      console.log("Available providers:", providers);
       return providers;
     } catch (error) {
       console.error("Error fetching available LLM providers:", error);
