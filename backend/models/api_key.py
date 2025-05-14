@@ -58,3 +58,16 @@ class APIKeySettings(BaseModel):
         """Check if we have an API key for the specified provider"""
         key = self.get_key_for_provider(provider)
         return key is not None and len(key) > 0
+    
+    def get_all_providers_status(self) -> Dict[str, bool]:
+        """Get status of all providers"""
+        return {
+            "openai": self.has_key_for_provider("openai"),
+            "anthropic": self.has_key_for_provider("anthropic"),
+            "google": self.has_key_for_provider("google"),
+            "groq": self.has_key_for_provider("groq"),
+            "cohere": self.has_key_for_provider("cohere"),
+            "huggingface": self.has_key_for_provider("huggingface"),
+            "deepseek": self.has_key_for_provider("deepseek"),
+            "siliconflow": self.has_key_for_provider("siliconflow"),
+        }

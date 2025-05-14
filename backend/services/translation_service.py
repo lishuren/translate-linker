@@ -53,7 +53,7 @@ class TranslationService:
     def get_llm(self, provider: str = None, user_id: Optional[str] = None):
         """
         Get LLM instance based on provider and user settings
-        Supports: openai, anthropic, google, groq, cohere, huggingface, deepseek
+        Supports: openai, anthropic, google, groq, cohere, huggingface, deepseek, siliconflow
         """
         # If user_id is provided and model selection is controlled by backend, 
         # override the provided provider with the user's configured provider
@@ -72,58 +72,83 @@ class TranslationService:
             print(f"Warning: No API key for provider {provider}. Using default provider.")
             provider = self.default_model
             api_key = self.api_keys.get_key_for_provider(provider)
+            
+            # If we still don't have a key, try each provider in turn
+            if not api_key:
+                for test_provider in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek", "siliconflow"]:
+                    test_key = self.api_keys.get_key_for_provider(test_provider)
+                    if test_key:
+                        provider = test_provider
+                        api_key = test_key
+                        print(f"Using {provider} as fallback provider with available API key")
+                        break
         
-        if provider == "openai" or provider == "chatgpt":
-            return ChatOpenAI(
-                model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                openai_api_key=api_key
-            )
-        elif provider == "anthropic" or provider == "claude":
-            return ChatAnthropic(
-                model_name=os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-sonnet-20240229"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                anthropic_api_key=api_key
-            )
-        elif provider == "google" or provider == "vertex" or provider == "grok":
-            return ChatVertexAI(
-                model_name=os.getenv("GOOGLE_MODEL_NAME", "gemini-pro"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                google_api_key=api_key
-            )
-        elif provider == "groq":
-            return ChatGroq(
-                model_name=os.getenv("GROQ_MODEL_NAME", "llama-3-70b-8192"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                groq_api_key=api_key
-            )
-        elif provider == "cohere":
-            return ChatCohere(
-                model=os.getenv("COHERE_MODEL_NAME", "command"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                cohere_api_key=api_key
-            )
-        elif provider == "huggingface":
-            return ChatHuggingFace(
-                model_id=os.getenv("HUGGINGFACE_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                huggingfacehub_api_token=api_key
-            )
-        elif provider == "deepseek":
-            # Using LangChain's OpenAI interface with DeepSeek endpoint
-            return ChatOpenAI(
-                model=os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                openai_api_base=os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"),
-                openai_api_key=api_key
-            )
-        else:
-            # Default to OpenAI
-            return ChatOpenAI(
-                model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                openai_api_key=api_key
-            )
+        if not api_key:
+            raise ValueError(f"No API keys configured for any provider. Please configure at least one LLM provider API key.")
+        
+        try:
+            if provider == "openai" or provider == "chatgpt":
+                return ChatOpenAI(
+                    model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    openai_api_key=api_key
+                )
+            elif provider == "anthropic" or provider == "claude":
+                return ChatAnthropic(
+                    model_name=os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-sonnet-20240229"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    anthropic_api_key=api_key
+                )
+            elif provider == "google" or provider == "vertex" or provider == "grok":
+                return ChatVertexAI(
+                    model_name=os.getenv("GOOGLE_MODEL_NAME", "gemini-pro"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    google_api_key=api_key
+                )
+            elif provider == "groq":
+                return ChatGroq(
+                    model_name=os.getenv("GROQ_MODEL_NAME", "llama-3-70b-8192"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    groq_api_key=api_key
+                )
+            elif provider == "cohere":
+                return ChatCohere(
+                    model=os.getenv("COHERE_MODEL_NAME", "command"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    cohere_api_key=api_key
+                )
+            elif provider == "huggingface":
+                return ChatHuggingFace(
+                    model_id=os.getenv("HUGGINGFACE_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    huggingfacehub_api_token=api_key
+                )
+            elif provider == "deepseek":
+                # Using LangChain's OpenAI interface with DeepSeek endpoint
+                return ChatOpenAI(
+                    model=os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    openai_api_base=os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1"),
+                    openai_api_key=api_key
+                )
+            elif provider == "siliconflow":
+                # Using OpenAI interface with SiliconFlow endpoint
+                return ChatOpenAI(
+                    model=os.getenv("SILICONFLOW_MODEL_NAME", "siliconflow-1"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    openai_api_base=os.getenv("SILICONFLOW_API_BASE", "https://api.siliconflow.net/v1"),
+                    openai_api_key=api_key
+                )
+            else:
+                # Default to OpenAI
+                return ChatOpenAI(
+                    model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
+                    temperature=float(os.getenv("LLM_TEMPERATURE", 0.1)),
+                    openai_api_key=self.api_keys.get_key_for_provider("openai")
+                )
+        except Exception as e:
+            print(f"Error initializing {provider} LLM: {str(e)}")
+            raise ValueError(f"Failed to initialize {provider} LLM: {str(e)}")
     
     async def process_translation(
         self, 
@@ -173,13 +198,40 @@ class TranslationService:
             
             # 5. Set up the translation agent with the selected LLM, respecting user settings
             await self._update_progress(translation_id, 0.6)  # 60%
-            llm = self.get_llm(llm_provider, user_id)
-            translation_agent = await self._setup_translation_agent(
-                source_language, 
-                target_language,
-                vector_store,
-                llm
-            )
+            
+            try:
+                llm = self.get_llm(llm_provider, user_id)
+                translation_agent = await self._setup_translation_agent(
+                    source_language, 
+                    target_language,
+                    vector_store,
+                    llm
+                )
+            except Exception as llm_error:
+                # Log the error and set failed status
+                error_message = f"LLM initialization failed: {str(llm_error)}"
+                print(error_message)
+                
+                # Update the translation status in the database
+                translations_db[translation_id] = Translation(
+                    id=translation_id,
+                    originalFileName=original_filename,
+                    targetLanguage=target_language,
+                    status=TranslationStatus.FAILED,
+                    createdAt=translations_db[translation_id].createdAt,
+                    errorMessage=error_message
+                )
+                
+                # Save error metadata
+                await self.file_service.save_metadata(translation_id, {
+                    "translation_id": translation_id,
+                    "status": "failed",
+                    "error": error_message,
+                    "llm_provider": llm_provider or self.default_model,
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                return
             
             # 6. Process translation
             await self._update_progress(translation_id, 0.7)  # 70%

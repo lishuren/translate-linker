@@ -88,15 +88,20 @@ async def upload_document(
         
         # Verify that we have an API key for the selected provider
         api_keys = APIKeySettings.from_env()
-        if not api_keys.has_key_for_provider(llmProvider):
-            # If no API key, use a provider we do have a key for or return error
-            if not api_keys.has_key_for_provider(api_keys.default_provider):
+        if llmProvider and not api_keys.has_key_for_provider(llmProvider):
+            # If no API key for selected provider, find a provider we do have a key for
+            available_providers = [p for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek", "siliconflow"] 
+                                if api_keys.has_key_for_provider(p)]
+            
+            if not available_providers:
                 raise HTTPException(
                     status_code=400, 
-                    detail=f"No API key configured for provider '{llmProvider}' or default provider"
+                    detail="No API keys configured for any LLM provider. Please configure at least one provider."
                 )
-            # Use the default provider instead
-            llmProvider = api_keys.default_provider
+            
+            # Use the first available provider
+            llmProvider = available_providers[0]
+            print(f"No API key for {llmProvider}, using {available_providers[0]} instead")
             
         # Generate unique ID for this translation
         translation_id = str(uuid.uuid4())
@@ -227,19 +232,16 @@ async def check_api_key_status():
     """Check if API keys are configured for each provider"""
     api_keys = APIKeySettings.from_env()
     
-    # Check each provider
-    status = {
-        "openai": api_keys.has_key_for_provider("openai"),
-        "anthropic": api_keys.has_key_for_provider("anthropic"),
-        "google": api_keys.has_key_for_provider("google"),
-        "groq": api_keys.has_key_for_provider("groq"),
-        "cohere": api_keys.has_key_for_provider("cohere"),
-        "huggingface": api_keys.has_key_for_provider("huggingface"),
-        "deepseek": api_keys.has_key_for_provider("deepseek"),
-        "siliconflow": api_keys.has_key_for_provider("siliconflow"),
-        "default_provider": api_keys.default_provider,
-        "has_default_key": api_keys.has_key_for_provider(api_keys.default_provider)
-    }
+    # Get status for all providers
+    status = api_keys.get_all_providers_status()
+    
+    # Add default provider info
+    status["default_provider"] = api_keys.default_provider
+    status["has_default_key"] = api_keys.has_key_for_provider(api_keys.default_provider)
+    
+    # Get count of configured providers
+    configured_providers = sum(1 for v in status.values() if isinstance(v, bool) and v)
+    status["configured_providers_count"] = configured_providers
     
     return {"api_key_status": status}
 

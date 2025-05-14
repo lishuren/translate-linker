@@ -26,6 +26,9 @@ export const translationApi = {
       });
       return response.data;
     } catch (error: any) {
+      if (error.response?.data?.detail && error.response.data.detail.includes("No API keys configured")) {
+        throw new Error("No API keys configured. Please set up at least one LLM provider API key.");
+      }
       throw error.response?.data?.detail || error.message;
     }
   },
@@ -67,7 +70,7 @@ export const translationApi = {
     }
   },
   
-  // New method to get API key status
+  // Enhanced method to get API key status
   checkApiKeyStatus: async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/config/api-key-status`, {
@@ -76,6 +79,27 @@ export const translationApi = {
       return response.data;
     } catch (error: any) {
       throw error.response?.data?.detail || error.message;
+    }
+  },
+  
+  // Helper function to get available LLM providers (those with API keys)
+  getAvailableLlmProviders: async () => {
+    try {
+      const { api_key_status } = await translationApi.checkApiKeyStatus();
+      
+      // Filter out non-boolean values and only include providers with keys
+      const providers = Object.entries(api_key_status)
+        .filter(([key, value]) => 
+          typeof value === 'boolean' && 
+          value === true && 
+          !['has_default_key'].includes(key)
+        )
+        .map(([key]) => key);
+      
+      return providers;
+    } catch (error) {
+      console.error("Error fetching available LLM providers:", error);
+      return [];
     }
   }
 };
