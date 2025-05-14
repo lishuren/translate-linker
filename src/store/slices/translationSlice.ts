@@ -1,4 +1,3 @@
-
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { translationApi } from "../../services/translationApi";
 
@@ -62,11 +61,11 @@ const initialState: TranslationState = {
 // Async thunks
 export const uploadDocument = createAsyncThunk(
   "translation/uploadDocument",
-  async ({ file, targetLanguage }: { file: File; targetLanguage: string }, thunkAPI) => {
+  async ({ file, targetLanguage, llmProvider }: { file: File; targetLanguage: string; llmProvider?: string }, thunkAPI) => {
     try {
-      console.log("Uploading document:", file.name, "to language:", targetLanguage);
+      console.log("Uploading document:", file.name, "to language:", targetLanguage, "using provider:", llmProvider || "default");
       // First make sure we're using the right API
-      const response = await translationApi.uploadDocument(file, targetLanguage);
+      const response = await translationApi.uploadDocument(file, targetLanguage, llmProvider);
       const translation = response.translation;
       
       console.log("Upload response:", translation);
@@ -125,10 +124,13 @@ const translationSlice = createSlice({
     clearUpload: (state) => {
       state.currentUpload = initialState.currentUpload;
     },
-    updateTranslationStatus: (state, action: PayloadAction<{ id: string, status: TranslationStatus }>) => {
+    updateTranslationStatus: (state, action: PayloadAction<{ id: string, status: TranslationStatus, errorMessage?: string }>) => {
       const translation = state.translations.find(t => t.id === action.payload.id);
       if (translation) {
         translation.status = action.payload.status;
+        if (action.payload.errorMessage) {
+          translation.errorMessage = action.payload.errorMessage;
+        }
       }
     }
   },

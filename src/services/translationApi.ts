@@ -66,6 +66,18 @@ export const translationApi = {
       throw error.response?.data?.detail || error.message;
     }
   },
+  
+  // New method to get API key status
+  checkApiKeyStatus: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/config/api-key-status`, {
+        headers: authHeader(),
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.detail || error.message;
+    }
+  }
 };
 
 // Export auth API as a separate object
