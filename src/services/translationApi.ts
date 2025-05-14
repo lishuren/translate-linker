@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import config from '../config/environment';
 
@@ -43,6 +44,17 @@ export const translationApi = {
   fetchTranslationHistory: async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/translation/history`, {
+        headers: authHeader(),
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.detail || error.message;
+    }
+  },
+  
+  deleteTranslation: async (translationId: string) => {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}/translation/${translationId}`, {
         headers: authHeader(),
       });
       return response.data;

@@ -18,7 +18,8 @@ class APIKeySettings(BaseModel):
     @classmethod
     def from_env(cls) -> "APIKeySettings":
         """Create settings from environment variables"""
-        default_provider = os.getenv("DEFAULT_LLM_MODEL", "openai")
+        # Explicitly load the default provider from environment
+        default_provider = os.getenv("DEFAULT_LLM_MODEL", "openai").lower()
         
         # Print debug information
         print(f"Loading API key settings with default provider: {default_provider}")
@@ -60,7 +61,7 @@ class APIKeySettings(BaseModel):
         elif provider == "siliconflow":
             return self.siliconflow_key
         else:
-            # Default to OpenAI
+            # Default to configured default provider
             print(f"Unknown provider '{provider}', falling back to default provider: {self.default_provider}")
             return self.get_key_for_provider(self.default_provider)
     

@@ -1,3 +1,4 @@
+
 import os
 import uuid
 import time
@@ -81,14 +82,24 @@ async def upload_document(
         # Check if user is allowed to select model
         is_allowed = await translation_service.is_model_selection_allowed(user_id)
         
+        # Use the provided LLM provider or the default one
+        selected_provider = llmProvider
+        
         # If user selection is not allowed, ignore provided LLM provider
         if not is_allowed and llmProvider:
             # Get the user's configured provider instead
-            llmProvider = user_settings_service.get_user_llm_provider(user_id)
+            selected_provider = user_settings_service.get_user_llm_provider(user_id)
+        
+        # If no provider specified, use the default provider from environment
+        if not selected_provider:
+            # Get default from API keys settings
+            api_keys = APIKeySettings.from_env()
+            selected_provider = api_keys.default_provider
+            print(f"No provider specified, using default provider: {selected_provider}")
         
         # Verify that we have an API key for the selected provider
         api_keys = APIKeySettings.from_env()
-        if llmProvider and not api_keys.has_key_for_provider(llmProvider):
+        if not api_keys.has_key_for_provider(selected_provider):
             # If no API key for selected provider, find a provider we do have a key for
             available_providers = [p for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek", "siliconflow"] 
                                 if api_keys.has_key_for_provider(p)]
@@ -100,8 +111,8 @@ async def upload_document(
                 )
             
             # Use the first available provider
-            llmProvider = available_providers[0]
-            print(f"No API key for {llmProvider}, using {available_providers[0]} instead")
+            selected_provider = available_providers[0]
+            print(f"No API key for {selected_provider}, using {available_providers[0]} instead")
             
         # Generate unique ID for this translation
         translation_id = str(uuid.uuid4())
@@ -129,7 +140,7 @@ async def upload_document(
                 file_path=file_path,
                 target_language=targetLanguage,
                 original_filename=file.filename,
-                llm_provider=llmProvider,
+                llm_provider=selected_provider,
                 user_id=user_id
             )
         else:
@@ -140,7 +151,7 @@ async def upload_document(
                 file_path=file_path,
                 target_language=targetLanguage,
                 original_filename=file.filename,
-                llm_provider=llmProvider,
+                llm_provider=selected_provider,
                 user_id=user_id
             )
         
@@ -173,6 +184,21 @@ async def download_translation(translation_id: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error downloading translation: {str(e)}")
+
+@app.delete("/api/translation/{translation_id}")
+async def delete_translation(translation_id: str, authorization: Optional[str] = Header(None)):
+    try:
+        # Get user ID from token
+        user_id = get_user_id_from_token(authorization)
+        
+        # Delete the translation
+        success = await translation_service.delete_translation(translation_id, user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Translation not found or you don't have permission to delete it")
+        
+        return {"success": True, "message": "Translation deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting translation: {str(e)}")
 
 @app.get("/api/translation/history")
 async def get_translation_history(authorization: Optional[str] = Header(None)):

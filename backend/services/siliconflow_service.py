@@ -10,7 +10,7 @@ class SiliconFlowService:
     def __init__(self):
         self.api_key = os.getenv("SILICONFLOW_API_KEY", "")
         self.api_base = os.getenv("SILICONFLOW_API_BASE", "https://cloud.siliconflow.cn/api/v1")
-        self.model_name = os.getenv("SILICONFLOW_MODEL_NAME", "siliconflow-1")
+        self.model_name = os.getenv("SILICONFLOW_MODEL_NAME", "Pro/deepseek-ai/DeepSeek-V3")
         self.temperature = float(os.getenv("LLM_TEMPERATURE", 0.1))
     
     async def generate_text(self, prompt: str, system_message: Optional[str] = None) -> str:
@@ -55,17 +55,22 @@ class SiliconFlowService:
                 }
                 
                 # Debug info
-                print(f"SiliconFlow API URL: {url}")
-                print(f"SiliconFlow Model: {self.model_name}")
-                print(f"SiliconFlow API Base: {self.api_base}")
-                print(f"SiliconFlow API Key configured: {bool(self.api_key)}")
+                print(f"SiliconFlow API Request:")
+                print(f"URL: {url}")
+                print(f"Model: {self.model_name}")
+                print(f"API Base: {self.api_base}")
+                print(f"API Key configured: {bool(self.api_key)}")
                 
                 async with session.post(url, headers=headers, json=payload) as response:
+                    response_text = await response.text()
+                    print(f"SiliconFlow API Response ({response.status}): {response_text[:200]}...")
+                    
                     if response.status == 200:
-                        data = await response.json()
-                        return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        data = json.loads(response_text)
+                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        return content
                     else:
-                        error_text = await response.text()
+                        error_text = response_text
                         print(f"SiliconFlow API error ({response.status}): {error_text}")
                         raise Exception(f"SiliconFlow API error ({response.status}): {error_text}")
                         

@@ -1,3 +1,4 @@
+
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { translationApi } from "../../services/translationApi";
 import { toast } from "sonner";
@@ -121,6 +122,23 @@ export const fetchTranslations = createAsyncThunk(
   }
 );
 
+export const deleteTranslation = createAsyncThunk(
+  "translation/delete",
+  async (translationId: string, thunkAPI) => {
+    try {
+      console.log("Deleting translation:", translationId);
+      await translationApi.deleteTranslation(translationId);
+      
+      toast.success("Translation deleted successfully");
+      return translationId;
+    } catch (error: any) {
+      console.error("Delete error in thunk:", error);
+      toast.error(error.message || "Failed to delete translation");
+      return thunkAPI.rejectWithValue(error.message || "Failed to delete translation");
+    }
+  }
+);
+
 const translationSlice = createSlice({
   name: "translation",
   initialState,
@@ -199,6 +217,12 @@ const translationSlice = createSlice({
     builder.addCase(fetchTranslations.rejected, (state, action) => {
       state.status = "error";
       state.error = action.payload as string;
+    });
+    
+    // Delete translation
+    builder.addCase(deleteTranslation.fulfilled, (state, action) => {
+      // Remove the deleted translation from the array
+      state.translations = state.translations.filter(t => t.id !== action.payload);
     });
   }
 });
