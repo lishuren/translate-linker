@@ -1,6 +1,8 @@
 
 from typing import Dict, Optional
 import os
+import sys
+import json
 from pydantic import BaseModel
 
 class APIKeySettings(BaseModel):
@@ -14,10 +16,14 @@ class APIKeySettings(BaseModel):
     deepseek_key: Optional[str] = None
     siliconflow_key: Optional[str] = None
     default_provider: str = "openai"
+    debug_mode: bool = False
 
     @classmethod
     def from_env(cls) -> "APIKeySettings":
         """Create settings from environment variables"""
+        # Check if debug mode is enabled
+        debug_mode = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+        
         # Explicitly load the default provider from environment
         default_provider = os.getenv("DEFAULT_LLM_MODEL", "openai").lower()
         
@@ -27,7 +33,10 @@ class APIKeySettings(BaseModel):
         # Check if we have the API key for SiliconFlow
         siliconflow_key = os.getenv("SILICONFLOW_API_KEY")
         print(f"[API KEYS] SiliconFlow API key configured: {bool(siliconflow_key)}")
-        print(f"[API KEYS] SiliconFlow API base: {os.getenv('SILICONFLOW_API_BASE', 'Not set')}")
+        
+        if debug_mode:
+            print(f"[API_KEYS_DEBUG] SiliconFlow API base: {os.getenv('SILICONFLOW_API_BASE', 'Not set')}")
+            print(f"[API_KEYS_DEBUG] Debug mode enabled: {debug_mode}")
         
         return cls(
             openai_key=os.getenv("OPENAI_API_KEY"),
@@ -39,7 +48,16 @@ class APIKeySettings(BaseModel):
             deepseek_key=os.getenv("DEEPSEEK_API_KEY"),
             siliconflow_key=siliconflow_key,
             default_provider=default_provider,
+            debug_mode=debug_mode,
         )
+    
+    def log_debug(self, message: str, data=None):
+        """Log debug messages only if in debug mode"""
+        if self.debug_mode:
+            if data:
+                print(f"[API_KEYS_DEBUG] {message}: {json.dumps(data, indent=2, default=str)}")
+            else:
+                print(f"[API_KEYS_DEBUG] {message}")
     
     def get_key_for_provider(self, provider: str) -> Optional[str]:
         """Get the API key for the specified provider"""
@@ -47,6 +65,9 @@ class APIKeySettings(BaseModel):
         
         # Print debug info for troubleshooting
         print(f"[API KEYS] Getting API key for provider: {provider}, default provider is: {self.default_provider}")
+        
+        if self.debug_mode:
+            self.log_debug(f"Looking up key for provider", provider)
         
         if provider in ["openai", "chatgpt"]:
             return self.openai_key

@@ -3,6 +3,7 @@ import os
 import json
 import aiohttp
 import traceback
+import sys
 from typing import Dict, List, Optional, Any
 
 class SiliconFlowService:
@@ -13,6 +14,15 @@ class SiliconFlowService:
         self.api_base = os.getenv("SILICONFLOW_API_BASE", "https://api.siliconflow.cn/v1/chat/completions")
         self.model_name = os.getenv("SILICONFLOW_MODEL_NAME", "Pro/deepseek-ai/DeepSeek-V3")
         self.temperature = float(os.getenv("LLM_TEMPERATURE", 0.1))
+        self.debug_mode = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+    
+    def log_debug(self, message: str, data=None):
+        """Log debug messages only if in debug mode"""
+        if self.debug_mode:
+            if data:
+                print(f"[SILICONFLOW_DEBUG] {message}: {json.dumps(data, indent=2, default=str)}")
+            else:
+                print(f"[SILICONFLOW_DEBUG] {message}")
     
     async def generate_text(self, prompt: str, system_message: Optional[str] = None) -> str:
         """
@@ -62,29 +72,31 @@ class SiliconFlowService:
                 }
                 
                 # Debug info
-                print(f"[SILICONFLOW] API Request:")
-                print(f"[SILICONFLOW] URL: {url}")
-                print(f"[SILICONFLOW] Model: {self.model_name}")
-                print(f"[SILICONFLOW] API Key configured: {bool(self.api_key)}")
-                print(f"[SILICONFLOW] Request payload: {json.dumps(payload, indent=2, default=str)}")
+                print(f"[SILICONFLOW] API Request to model: {self.model_name}")
+                if self.debug_mode:
+                    self.log_debug("Full request URL", url)
+                    self.log_debug("API Key configured", bool(self.api_key))
+                    self.log_debug("Authorization header", f"Bearer {self.api_key[:5]}...{self.api_key[-4:]}" if self.api_key else None)
+                    self.log_debug("Request payload", payload)
                 
                 async with session.post(url, headers=headers, json=payload) as response:
                     response_text = await response.text()
                     print(f"[SILICONFLOW] Response status: {response.status}")
-                    print(f"[SILICONFLOW] Response headers: {dict(response.headers)}")
+                    
+                    if self.debug_mode:
+                        self.log_debug("Response headers", dict(response.headers))
+                        self.log_debug("Full response text", response_text[:1000] + ("..." if len(response_text) > 1000 else ""))
                     
                     if response.status == 200:
                         data = json.loads(response_text)
                         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                        print(f"[SILICONFLOW] Response successfully received:")
-                        print(f"[SILICONFLOW] Content length: {len(content)}")
-                        print(f"[SILICONFLOW] Content preview: {content[:100]}...")
+                        print(f"[SILICONFLOW] Response successfully received")
                         
-                        # Additional response details
-                        model_used = data.get("model", "unknown")
-                        usage = data.get("usage", {})
-                        print(f"[SILICONFLOW] Model used: {model_used}")
-                        print(f"[SILICONFLOW] Token usage: {usage}")
+                        if self.debug_mode:
+                            self.log_debug("Content length", len(content))
+                            self.log_debug("Content preview", content[:100] + ("..." if len(content) > 100 else ""))
+                            self.log_debug("Model used", data.get("model", "unknown"))
+                            self.log_debug("Token usage", data.get("usage", {}))
                         
                         return content
                     else:
@@ -93,5 +105,6 @@ class SiliconFlowService:
                         
         except Exception as e:
             print(f"[SILICONFLOW] Error using SiliconFlow API: {str(e)}")
-            print(f"[SILICONFLOW] Exception traceback: {traceback.format_exc()}")
+            if self.debug_mode:
+                print(f"[SILICONFLOW_DEBUG] Exception traceback: {traceback.format_exc()}")
             raise

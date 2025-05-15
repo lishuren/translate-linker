@@ -1,7 +1,7 @@
-
 import os
 import uuid
 import time
+import sys
 import traceback
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -34,6 +34,17 @@ from app_auth import auth_router, get_user_id_from_token
 
 # Load environment variables
 load_dotenv()
+
+# Check if debug mode is enabled
+DEBUG_MODE = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+
+def debug_log(message: str, data=None):
+    """Log debug messages only if in debug mode"""
+    if DEBUG_MODE:
+        if data:
+            print(f"[DEBUG] {message}: {data}")
+        else:
+            print(f"[DEBUG] {message}")
 
 app = FastAPI(
     title="LingoAIO API",
@@ -84,6 +95,9 @@ async def upload_document(
         # Get user ID from token
         user_id = get_user_id_from_token(authorization)
         print(f"[UPLOAD] Request from user ID: {user_id}")
+        
+        if DEBUG_MODE:
+            debug_log(f"Authorization header", authorization[:15] + "..." if authorization else None)
         
         # Check if user is allowed to select model
         is_allowed = await translation_service.is_model_selection_allowed(user_id)
@@ -173,7 +187,8 @@ async def upload_document(
     
     except Exception as e:
         print(f"[ERROR] Upload document error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
 
 @app.get("/api/translation/status/{translation_id}", response_model=TranslationStatusResponse)
@@ -189,7 +204,8 @@ async def check_translation_status(translation_id: str):
         return status
     except Exception as e:
         print(f"[ERROR] Status check error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error checking translation status: {str(e)}")
 
 @app.get("/api/translation/download/{translation_id}")
@@ -209,7 +225,8 @@ async def download_translation(translation_id: str):
         )
     except Exception as e:
         print(f"[ERROR] Download error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error downloading translation: {str(e)}")
 
 @app.delete("/api/translation/{translation_id}")
@@ -220,6 +237,11 @@ async def delete_translation(translation_id: str, authorization: Optional[str] =
         # Get user ID from token
         user_id = get_user_id_from_token(authorization)
         print(f"[DELETE] Request from user ID: {user_id}")
+        
+        if DEBUG_MODE:
+            debug_log(f"Authorization header", authorization[:15] + "..." if authorization else None)
+            debug_log(f"Translation ID to delete", translation_id)
+            debug_log(f"User ID attempting deletion", user_id)
         
         if not user_id:
             print(f"[DELETE] Unauthorized deletion attempt for translation: {translation_id}")
@@ -236,7 +258,8 @@ async def delete_translation(translation_id: str, authorization: Optional[str] =
         return {"success": True, "message": "Translation deleted successfully"}
     except Exception as e:
         print(f"[ERROR] Delete translation error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error deleting translation: {str(e)}")
 
 @app.get("/api/translation/history")
@@ -257,7 +280,8 @@ async def get_translation_history(authorization: Optional[str] = Header(None)):
         return {"translations": translations}
     except Exception as e:
         print(f"[ERROR] Translation history error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error retrieving translation history: {str(e)}")
 
 @app.get("/api/config/model-selection-allowed")
@@ -271,7 +295,8 @@ async def is_model_selection_allowed(authorization: Optional[str] = Header(None)
         return {"allowed": is_allowed}
     except Exception as e:
         print(f"[ERROR] Model selection check error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error checking model selection permission: {str(e)}")
 
 @app.get("/api/config/available-web-translation-services")
@@ -282,7 +307,8 @@ async def get_available_web_translation_services():
         return {"services": services}
     except Exception as e:
         print(f"[ERROR] Web translation services error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error retrieving web translation services: {str(e)}")
 
 @app.get("/api/config/system-info")
@@ -317,7 +343,8 @@ async def get_system_info():
         }
     except Exception as e:
         print(f"[ERROR] System info error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")
 
 @app.get("/api/config/api-key-status")
@@ -355,7 +382,8 @@ async def check_api_key_status():
         }
     except Exception as e:
         print(f"[ERROR] API key status check error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error checking API key status: {str(e)}")
 
 # Debug endpoint to test Silicon Flow service directly
@@ -373,7 +401,9 @@ async def test_siliconflow():
         debug_info = {
             "api_key_set": bool(api_key),
             "api_base": api_base,
-            "model_name": model_name
+            "model_name": model_name,
+            "debug_mode": DEBUG_MODE,
+            "command_line_args": sys.argv
         }
         
         print(f"[DEBUG] SiliconFlow config: {debug_info}")
@@ -395,25 +425,33 @@ async def test_siliconflow():
         }
     except Exception as e:
         print(f"[ERROR] SiliconFlow test error: {str(e)}")
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
-        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+        if DEBUG_MODE:
+            print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc() if DEBUG_MODE else None}
 
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
     print("[SERVER] Starting up LingoAIO API server")
-    print(f"[SERVER] Environment configuration:")
-    print(f"[SERVER] DEFAULT_LLM_MODEL: {os.getenv('DEFAULT_LLM_MODEL', 'not set')}")
-    print(f"[SERVER] SILICONFLOW_API_KEY: {'configured' if os.getenv('SILICONFLOW_API_KEY') else 'not configured'}")
-    print(f"[SERVER] SILICONFLOW_API_BASE: {os.getenv('SILICONFLOW_API_BASE', 'not set')}")
-    print(f"[SERVER] SILICONFLOW_MODEL_NAME: {os.getenv('SILICONFLOW_MODEL_NAME', 'not set')}")
-    print(f"[SERVER] RAG_ENABLED: {os.getenv('RAG_ENABLED', 'not set')}")
+    print(f"[SERVER] Debug mode: {DEBUG_MODE}")
+    print(f"[SERVER] Command line arguments: {sys.argv}")
+    
+    if DEBUG_MODE:
+        print(f"[SERVER_DEBUG] Environment configuration:")
+        print(f"[SERVER_DEBUG] DEFAULT_LLM_MODEL: {os.getenv('DEFAULT_LLM_MODEL', 'not set')}")
+        print(f"[SERVER_DEBUG] SILICONFLOW_API_KEY: {'configured' if os.getenv('SILICONFLOW_API_KEY') else 'not configured'}")
+        print(f"[SERVER_DEBUG] SILICONFLOW_API_BASE: {os.getenv('SILICONFLOW_API_BASE', 'not set')}")
+        print(f"[SERVER_DEBUG] SILICONFLOW_MODEL_NAME: {os.getenv('SILICONFLOW_MODEL_NAME', 'not set')}")
+        print(f"[SERVER_DEBUG] RAG_ENABLED: {os.getenv('RAG_ENABLED', 'not set')}")
     
     # Test loading API keys
     api_keys = APIKeySettings.from_env()
     print(f"[SERVER] Default LLM provider: {api_keys.default_provider}")
     print(f"[SERVER] API key for default provider exists: {api_keys.has_key_for_provider(api_keys.default_provider)}")
-    print(f"[SERVER] Available providers: {', '.join([p for p in ['openai', 'anthropic', 'google', 'groq', 'cohere', 'huggingface', 'deepseek', 'siliconflow'] if api_keys.has_key_for_provider(p)])}")
+    
+    available_providers = [p for p in ['openai', 'anthropic', 'google', 'groq', 'cohere', 'huggingface', 'deepseek', 'siliconflow'] 
+                          if api_keys.has_key_for_provider(p)]
+    print(f"[SERVER] Available providers: {', '.join(available_providers)}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -421,7 +459,10 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    debug = os.getenv("DEBUG", "False").lower() == "true"
+    debug = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+    
+    print(f"[STARTUP] Starting server with debug mode: {debug}")
+    print(f"[STARTUP] Command line args: {sys.argv}")
     
     uvicorn.run(
         "app:app",
