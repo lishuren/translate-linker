@@ -2,6 +2,7 @@
 import os
 import json
 import aiohttp
+import traceback
 from typing import Dict, List, Optional, Any
 
 class SiliconFlowService:
@@ -25,6 +26,7 @@ class SiliconFlowService:
             Generated text response from the model
         """
         if not self.api_key:
+            print("[SILICONFLOW] Error: API key is not configured")
             raise ValueError("SiliconFlow API key is not configured")
             
         try:
@@ -64,18 +66,32 @@ class SiliconFlowService:
                 print(f"[SILICONFLOW] URL: {url}")
                 print(f"[SILICONFLOW] Model: {self.model_name}")
                 print(f"[SILICONFLOW] API Key configured: {bool(self.api_key)}")
+                print(f"[SILICONFLOW] Request payload: {json.dumps(payload, indent=2, default=str)}")
                 
                 async with session.post(url, headers=headers, json=payload) as response:
+                    response_text = await response.text()
+                    print(f"[SILICONFLOW] Response status: {response.status}")
+                    print(f"[SILICONFLOW] Response headers: {dict(response.headers)}")
+                    
                     if response.status == 200:
-                        data = await response.json()
+                        data = json.loads(response_text)
                         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                        print(f"[SILICONFLOW] Response successfully received, content length: {len(content)}")
+                        print(f"[SILICONFLOW] Response successfully received:")
+                        print(f"[SILICONFLOW] Content length: {len(content)}")
+                        print(f"[SILICONFLOW] Content preview: {content[:100]}...")
+                        
+                        # Additional response details
+                        model_used = data.get("model", "unknown")
+                        usage = data.get("usage", {})
+                        print(f"[SILICONFLOW] Model used: {model_used}")
+                        print(f"[SILICONFLOW] Token usage: {usage}")
+                        
                         return content
                     else:
-                        error_text = await response.text()
-                        print(f"[SILICONFLOW] API error ({response.status}): {error_text}")
-                        raise Exception(f"SiliconFlow API error ({response.status}): {error_text}")
+                        print(f"[SILICONFLOW] API error ({response.status}): {response_text}")
+                        raise Exception(f"SiliconFlow API error ({response.status}): {response_text}")
                         
         except Exception as e:
             print(f"[SILICONFLOW] Error using SiliconFlow API: {str(e)}")
+            print(f"[SILICONFLOW] Exception traceback: {traceback.format_exc()}")
             raise

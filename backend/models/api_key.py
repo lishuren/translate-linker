@@ -23,7 +23,10 @@ class APIKeySettings(BaseModel):
         
         # Print detailed debug information
         print(f"[API KEYS] Loading API key settings with default provider: {default_provider}")
-        print(f"[API KEYS] SiliconFlow API key configured: {bool(os.getenv('SILICONFLOW_API_KEY'))}")
+        
+        # Check if we have the API key for SiliconFlow
+        siliconflow_key = os.getenv("SILICONFLOW_API_KEY")
+        print(f"[API KEYS] SiliconFlow API key configured: {bool(siliconflow_key)}")
         print(f"[API KEYS] SiliconFlow API base: {os.getenv('SILICONFLOW_API_BASE', 'Not set')}")
         
         return cls(
@@ -34,7 +37,7 @@ class APIKeySettings(BaseModel):
             cohere_key=os.getenv("COHERE_API_KEY"),
             huggingface_key=os.getenv("HUGGINGFACE_API_KEY"),
             deepseek_key=os.getenv("DEEPSEEK_API_KEY"),
-            siliconflow_key=os.getenv("SILICONFLOW_API_KEY"),
+            siliconflow_key=siliconflow_key,
             default_provider=default_provider,
         )
     
@@ -60,7 +63,19 @@ class APIKeySettings(BaseModel):
         elif provider == "deepseek":
             return self.deepseek_key
         elif provider == "siliconflow":
-            return self.siliconflow_key
+            if self.siliconflow_key:
+                return self.siliconflow_key
+            else:
+                print(f"Warning: No API key for provider {provider}. Using default provider.")
+                if provider == self.default_provider:
+                    # If the requested provider is the default provider but has no key,
+                    # try to find any available provider with a key
+                    for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek"]:
+                        key = self.get_key_for_provider(p)
+                        if key:
+                            print(f"[API KEYS] Falling back to provider: {p} since default provider has no key")
+                            return key
+                return self.get_key_for_provider(self.default_provider)
         else:
             # Fall back to default provider
             print(f"[API KEYS] Unknown provider '{provider}', falling back to default provider: {self.default_provider}")

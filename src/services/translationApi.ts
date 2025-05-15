@@ -47,6 +47,13 @@ export const translationApi = {
         headers: authHeader(),
       });
       console.log("Translation history response:", response.data);
+      
+      // Handle possible undefined translations array
+      if (!response.data.translations) {
+        console.warn("No translations found in response");
+        return { translations: [] };
+      }
+      
       return response.data;
     } catch (error: any) {
       console.error("Error fetching translation history:", error);
@@ -64,6 +71,9 @@ export const translationApi = {
       return response.data;
     } catch (error: any) {
       console.error("Error deleting translation:", error?.response?.data || error);
+      if (error.response?.status === 404) {
+        throw new Error("Translation not found or already deleted");
+      }
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail);
       }
@@ -100,6 +110,7 @@ export const translationApi = {
   // Enhanced method to get API key status
   checkApiKeyStatus: async () => {
     try {
+      console.log("Checking API key status...");
       const response = await axios.get(`${API_BASE_URL}/config/api-key-status`, {
         headers: authHeader(),
       });
@@ -140,13 +151,16 @@ export const translationApi = {
 export const authApi = {
   login: async (username: string, password: string) => {
     try {
+      console.log(`[AUTH] Login attempt for user: ${username}`);
       const response = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
+      console.log(`[AUTH] Login successful for user: ${username}`);
       localStorage.setItem('token', response.data.token);
       return {
         ...response.data.user,
         isLoggedIn: true
       };
     } catch (error: any) {
+      console.error(`[AUTH] Login failed for user: ${username}`, error?.response?.data || error);
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail);
       } else {
@@ -157,9 +171,12 @@ export const authApi = {
 
   logout: async () => {
     try {
+      console.log(`[AUTH] Logout attempt`);
       await axios.post(`${API_BASE_URL}/auth/logout`, {}, { headers: authHeader() });
+      console.log(`[AUTH] Logout successful`);
       localStorage.removeItem('token');
     } catch (error: any) {
+      console.error(`[AUTH] Logout failed`, error?.response?.data || error);
       localStorage.removeItem('token');
       throw error.response?.data?.message || error.message;
     }
@@ -167,12 +184,15 @@ export const authApi = {
 
   getCurrentUser: async () => {
     try {
+      console.log(`[AUTH] Fetching current user info`);
       const response = await axios.get(`${API_BASE_URL}/auth/me`, { headers: authHeader() });
+      console.log(`[AUTH] Current user info retrieved`);
       return {
         ...response.data,
         isLoggedIn: true
       };
     } catch (error: any) {
+      console.error(`[AUTH] Failed to fetch current user info`, error?.response?.data || error);
       return null; // Not authenticated
     }
   },
@@ -180,12 +200,15 @@ export const authApi = {
   // Add new user function
   createUser: async (username: string, password: string, email: string | null = null, adminToken: string) => {
     try {
+      console.log(`[AUTH] Creating new user: ${username}`);
       const response = await axios.post(`${API_BASE_URL}/auth/create-user`, 
         { username, password, email },
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
+      console.log(`[AUTH] User created successfully: ${username}`);
       return response.data;
     } catch (error: any) {
+      console.error(`[AUTH] Failed to create user: ${username}`, error?.response?.data || error);
       if (error.response?.data?.detail) {
         throw new Error(error.response.data.detail);
       } else {
