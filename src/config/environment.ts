@@ -18,6 +18,7 @@ interface EnvironmentConfig {
   backendPort: number;
   frontendPort: number;
   apiProxyEnabled: boolean;
+  debug: boolean; // Added debug property
 }
 
 // Development environment configuration
@@ -29,7 +30,8 @@ const development: EnvironmentConfig = {
   version: '1.0.0-dev',
   backendPort: 5000,
   frontendPort: 8080,
-  apiProxyEnabled: true
+  apiProxyEnabled: true,
+  debug: true // Debug enabled in development
 };
 
 // Production environment configuration
@@ -41,7 +43,8 @@ const production: EnvironmentConfig = {
   version: '1.0.0',
   backendPort: 5000, // In production, this should match your deployment setup
   frontendPort: 80,  // Standard HTTP port for production
-  apiProxyEnabled: false
+  apiProxyEnabled: false,
+  debug: false // Debug disabled in production
 };
 
 // Testing environment configuration

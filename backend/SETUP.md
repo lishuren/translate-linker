@@ -63,8 +63,24 @@ mkdir -p vector_stores tmx_files config translations uploads data/chroma
 
 ### 6. Start the Server
 
+#### Standard Mode
 ```bash
 uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+```
+
+#### Debug Mode
+To enable detailed logging, including bearer tokens and API conversations:
+```bash
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload --debug
+```
+
+You can also set the DEBUG environment variable:
+```bash
+# On Windows
+set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+
+# On macOS/Linux
+DEBUG=True uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
 The API will be available at http://localhost:5000
@@ -113,6 +129,31 @@ The frontend is a React application that communicates with this backend. To set 
 3. Update the API base URL in `src/services/translationApi.ts` if needed
 4. Start the development server: `npm run dev` or `yarn dev`
 
+## Translation Files
+
+### Accessing Translated Files
+
+Completed translations can be accessed in several ways:
+
+1. **Through the web interface**:
+   - Navigate to the translation history in the application
+   - Find your completed translation
+   - Click the "Download" button to retrieve the file
+
+2. **Direct API access**:
+   - For programmatic access: `GET /api/translation/download/{translation_id}`
+   - Add your authentication token in the headers
+
+3. **File system location**:
+   - Translated files are stored in the `translations` directory on the server
+   - File naming format: `{translation_id}_{original_filename}`
+
+### Translation Status Monitoring
+
+You can check the status of a translation by using:
+- Web interface: Status indicators on the dashboard
+- API: `GET /api/translation/status/{translation_id}`
+
 ## Advanced Configuration
 
 ### Global Configuration
@@ -154,4 +195,3 @@ The following database files are used and should be included in git:
 - **Authentication Issues**: Check that the SQLite database is writable and accessible
 - **Memory Errors**: If you encounter memory errors, try reducing batch sizes and model complexity
 - **ChromaDB Errors**: Ensure the ChromaDB directory is writable
-

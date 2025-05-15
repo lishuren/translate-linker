@@ -1,3 +1,4 @@
+
 # Welcome to your Lovable project
 
 ## Project info
@@ -67,3 +68,44 @@ Simply open [Lovable](https://lovable.dev/projects/96da4a68-5fe4-4905-9a26-e89dc
 ## I want to use a custom domain - is that possible?
 
 We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+
+## Backend Setup and Debug Mode
+
+### Starting the Backend
+
+To run the backend server:
+
+```sh
+# Navigate to the backend directory
+cd backend
+
+# Standard mode
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+
+# Debug mode - provides detailed logging including API conversations and bearer tokens
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload --debug
+```
+
+You can also set the DEBUG environment variable to "True" in your .env file or directly in the command:
+
+```sh
+# On Windows
+set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+
+# On macOS/Linux
+DEBUG=True uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+```
+
+### Downloading Translated Files
+
+Once a translation is completed:
+
+1. Navigate to the dashboard in the application
+2. Find your completed translation in the list
+3. Click the "Download" button next to the completed translation
+4. The file will be downloaded to your computer with the translated content
+
+Alternatively, you can access the download API directly at:
+`/api/translation/download/{translation_id}`
+
+Where `translation_id` is the unique identifier for your translation. This ID is provided when you submit a document for translation and can also be found in the translation history.
