@@ -1,80 +1,95 @@
 
-# LingoAIO - Setup Guide
+# LingoAIO Backend Setup Guide
 
-This document provides instructions for setting up the LingoAIO backend with RAG, TMX support, and multiple LLM providers.
+This guide provides step-by-step instructions for setting up the LingoAIO backend.
 
-## System Requirements
+## Prerequisites
 
-- Python 3.9 or later
-- pip package manager
-- SQLite (included with the project)
-- 4GB+ RAM (recommended for embedding models)
+- Python 3.8 or higher
+- Virtual environment tool (venv, conda, etc.)
+- Required Python packages (specified in requirements.txt)
 
-## Installation Steps
+## Setup Instructions
 
 ### 1. Clone the Repository
 
-```bash
-git clone <repository-url>
-cd <repository-directory>/backend
-```
+If you haven't already, clone the repository to your local machine.
 
-### 2. Set Up Python Environment
+### 2. Create a Virtual Environment
 
 ```bash
+# Navigate to the backend directory
+cd backend
+
 # Create a virtual environment
 python -m venv venv
 
 # Activate the virtual environment
-# On Windows:
+# On Windows
 venv\Scripts\activate
-# On macOS/Linux:
+# On macOS/Linux
 source venv/bin/activate
+```
 
-# Install dependencies
+### 3. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
+### 4. Set Up Environment Variables
 
-Copy the example environment file and update it with your API keys and configuration:
+Create a `.env` file in the backend directory with the following variables:
 
-```bash
-cp .env.example .env
+```
+# App configuration
+SECRET_KEY=your_secret_key_here
+DEBUG=False  # Set to True for development
+
+# Database configuration
+DATABASE_URL=sqlite:///./data/auth.db
+
+# Default LLM provider
+DEFAULT_LLM_MODEL=openai
+
+# LLM API keys
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+COHERE_API_KEY=your_cohere_api_key_here
+HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+SILICONFLOW_API_KEY=your_siliconflow_api_key_here
+SILICONFLOW_API_BASE=https://api.siliconflow.cn/v1/chat/completions
+SILICONFLOW_MODEL_NAME=Pro/deepseek-ai/DeepSeek-V3
+
+# RAG settings
+RAG_ENABLED=true
+EMBEDDING_MODEL=all-MiniLM-L6-v2
 ```
 
-Edit the `.env` file to set your API keys and configuration:
+You only need to provide API keys for the LLM providers you intend to use.
 
-- Set `DEFAULT_LLM_MODEL` to your preferred provider (openai, anthropic, google, groq, cohere, huggingface, deepseek, siliconflow)
-- Add API keys for the LLM providers you plan to use
-- Configure web translation services if needed
-- Set `RAG_ENABLED=true` to enable Retrieval Augmented Generation
-- Configure database settings if you want to use a persistent database
-
-### 4. Initialize the Database
-
-The SQLite database will be automatically initialized when you start the server. The default user (username: tmxer, password: abcd1234) will be created automatically.
-
-### 5. Create Required Directories
+### 5. Initialize the Database
 
 ```bash
-mkdir -p vector_stores tmx_files config translations uploads data/chroma
+python -c "from models.database import initialize_db; initialize_db()"
 ```
+
+This will create the necessary database tables.
 
 ### 6. Start the Server
 
 #### Standard Mode
 ```bash
+# Basic mode (no detailed logging)
 uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
 #### Debug Mode
-To enable detailed logging, including bearer tokens and API conversations:
-```bash
-uvicorn app:app --host 0.0.0.0 --port 5000 --reload --debug
-```
+To enable detailed logging, including bearer tokens and API conversations, set the DEBUG environment variable:
 
-You can also set the DEBUG environment variable:
 ```bash
 # On Windows
 set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
@@ -83,49 +98,57 @@ set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 DEBUG=True uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
+Note: Uvicorn doesn't have a `--debug` flag directly. Instead, use the DEBUG environment variable or add it to your .env file.
+
 The API will be available at http://localhost:5000
+
+## API Documentation
+
+The API documentation will be available at http://localhost:5000/docs when the server is running.
 
 ## Authentication
 
-The system uses SQLite for user authentication with the following features:
+### Creating the First User
 
-- Default user: username=tmxer, password=abcd1234
-- Email-type usernames (containing @) have session-expiring passwords
-- Regular usernames have non-expiring passwords
-- Authentication endpoints:
-  - POST /api/auth/login - Log in with username/password
-  - POST /api/auth/logout - Log out and invalidate token
-  - GET /api/auth/me - Get current user information
-
-## Using Translation Memory eXchange (TMX)
-
-### Importing TMX Files
-
-To import existing translation memories, use the `/api/tmx/upload` endpoint:
+To create a first admin user, use the following command:
 
 ```bash
-curl -X POST -F "file=@your_file.tmx" -H "Authorization: Bearer YOUR_TOKEN" http://localhost:5000/api/tmx/upload
+python -c "from models.authentication import create_admin_user; create_admin_user('admin', 'password')"
 ```
 
-### Exporting Translations as TMX
+This will create a user with the username "admin" and the specified password.
 
-Use the `/api/translation/{translation_id}/export-tmx` endpoint to export a completed translation as a TMX file.
+### Authentication Endpoints
 
-## ChromaDB for RAG
+- **POST /api/auth/login** - Log in with username and password
+- **POST /api/auth/logout** - Log out (requires authentication)
+- **GET /api/auth/me** - Get current user details (requires authentication)
 
-The system uses ChromaDB for translation memory and RAG:
+### Adding Additional Users
 
-- Each user has their own ChromaDB collection
-- Translation data is automatically added to the user's RAG store
-- ChromaDB stores are persisted to disk in the data/chroma directory
-- The database will grow as more translations are performed
+You can create additional users using the admin token:
 
-## Frontend Setup
+```
+POST /api/auth/create-user
+```
 
-The frontend is a React application that communicates with this backend. To set it up:
+Request body:
+```json
+{
+  "username": "newuser",
+  "password": "newpassword",
+  "email": "user@example.com" // Optional
+}
+```
 
-1. Navigate to the frontend directory: `cd ../frontend`
-2. Install dependencies: `npm install` or `yarn install`
+Include the admin token in the Authorization header.
+
+## Frontend Integration
+
+### Setting Up the Frontend
+
+1. Configure the frontend to connect to the backend API
+2. Set the API base URL in `.env` or configuration files
 3. Update the API base URL in `src/services/translationApi.ts` if needed
 4. Start the development server: `npm run dev` or `yarn dev`
 
@@ -158,40 +181,50 @@ You can check the status of a translation by using:
 
 ### Global Configuration
 
-To modify global settings, edit the `global_config.json` file in the `config` directory.
+The backend uses a global configuration file (`global_config.json`) to store various settings:
 
-### RAG Configuration
+```json
+{
+  "llm_settings": {
+    "default_provider": "openai",
+    "providers": {
+      "openai": {
+        "model": "gpt-3.5-turbo"
+      },
+      "anthropic": {
+        "model": "claude-2"
+      }
+    }
+  },
+  "translation_settings": {
+    "max_chunk_size": 2000,
+    "default_service": "none",
+    "rag_enabled": true
+  },
+  "user_settings": {
+    "allow_model_selection": true
+  }
+}
+```
 
-Retrieval Augmented Generation settings can be adjusted in the global config file:
+### Configuring RAG (Retrieval-Augmented Generation)
 
-- `rag_enabled`: Enable/disable RAG
-- `chunk_size`: Size of document chunks for embedding
-- `chunk_overlap`: Overlap between chunks
-- `vector_store_type`: Type of vector store (now using "chroma")
+RAG is enabled by default and can be configured in the `global_config.json` file:
 
-### User-Specific Settings
-
-User-specific settings are stored in the `user_settings.json` file. These override global settings when a user ID is provided with API requests.
-
-## Adding a New LLM Provider
-
-To add a new LLM provider:
-
-1. Create a new service file in the `services` directory
-2. Update the `get_llm` method in `TranslationService` to support the new provider
-3. Add the provider's configuration to the `.env` file
-4. Update the global configuration
-
-## Database Files
-
-The following database files are used and should be included in git:
-
-- `backend/data/auth.db` - SQLite database for authentication
-- `backend/data/chroma/` - ChromaDB directory for vector storage
+```json
+"translation_settings": {
+  "rag_enabled": true,
+  "chunk_size": 1000,
+  "chunk_overlap": 200
+}
+```
 
 ## Troubleshooting
 
-- **API Key Issues**: Ensure all required API keys are set correctly in the `.env` file
-- **Authentication Issues**: Check that the SQLite database is writable and accessible
+Common issues and solutions:
+
+- **API Key Issues**: Ensure API keys are correctly set in the .env file
+- **Permission Errors**: Check that file directories have appropriate write permissions
+- **Database Errors**: Verify that the database path is correct and accessible
 - **Memory Errors**: If you encounter memory errors, try reducing batch sizes and model complexity
 - **ChromaDB Errors**: Ensure the ChromaDB directory is writable

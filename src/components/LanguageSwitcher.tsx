@@ -16,7 +16,7 @@ export function LanguageSwitcher() {
       onClick={toggleLanguage}
       className="px-2"
     >
-      {language === 'en' ? 'EN | 中文' : '英文 | 中文'}
+      {t('languageToggle')}
     </Button>
   );
 }

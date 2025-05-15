@@ -19,33 +19,33 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/hooks/use-redux";
 import { uploadDocument, fetchTranslations, setFile, setTargetLanguage, clearUpload, deleteTranslation } from "@/store/slices/translationSlice";
 import { translationApi } from "@/services/translationApi";
 import { format } from "date-fns";
-
-const LANGUAGES = [
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "zh", name: "Chinese (Simplified)" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "ru", name: "Russian" },
-  { code: "pt", name: "Portuguese" },
-  { code: "ar", name: "Arabic" },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("upload");
-  const { toast } = useToast();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { translations, currentUpload, status } = useAppSelector((state) => state.translation);
   const [dragActive, setDragActive] = useState(false);
-  const [translationToDelete, setTranslationToDelete] = useState(null);
+  const { t, language } = useLanguage();
+
+  const LANGUAGES = [
+    { code: "es", name: t('spanish') },
+    { code: "fr", name: t('french') },
+    { code: "de", name: t('german') },
+    { code: "it", name: t('italian') },
+    { code: "zh", name: t('chinese') },
+    { code: "ja", name: t('japanese') },
+    { code: "ko", name: t('korean') },
+    { code: "ru", name: t('russian') },
+    { code: "pt", name: t('portuguese') },
+    { code: "ar", name: t('arabic') },
+  ];
 
   useEffect(() => {
     dispatch(fetchTranslations());
@@ -96,10 +96,8 @@ const Dashboard = () => {
     ];
 
     if (!validTypes.includes(file.type)) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload a document file (PDF, Word, Excel, PowerPoint, or Text).",
-        variant: "destructive",
+      toast(t('invalidFileType'), {
+        description: t('pleaseUpload'),
       });
       return;
     }
@@ -112,19 +110,15 @@ const Dashboard = () => {
     console.log("Starting upload process");
     
     if (!currentUpload.file) {
-      toast({
-        title: "No File Selected",
-        description: "Please select a document to translate.",
-        variant: "destructive",
+      toast(t('noFileSelected'), {
+        description: t('selectDocument'),
       });
       return;
     }
 
     if (!currentUpload.targetLanguage) {
-      toast({
-        title: "Target Language Required",
-        description: "Please select a target language for translation.",
-        variant: "destructive",
+      toast(t('targetLanguageRequired'), {
+        description: t('pleaseSelectTarget'),
       });
       return;
     }
@@ -136,9 +130,8 @@ const Dashboard = () => {
         targetLanguage: currentUpload.targetLanguage,
       })).unwrap();
       
-      toast({
-        title: "Document Uploaded",
-        description: "Your document is being translated. You'll receive an email when it's ready.",
+      toast(t('documentUploaded'), {
+        description: t('uploadedDescription'),
       });
       
       // Clear the upload form
@@ -152,10 +145,8 @@ const Dashboard = () => {
       
     } catch (error) {
       console.error("Upload error:", error);
-      toast({
-        title: "Upload Failed",
-        description: error?.message || "Failed to upload document. Please try again.",
-        variant: "destructive",
+      toast(t('uploadFailed'), {
+        description: error?.message || t('tryAgain'),
       });
     }
   };
@@ -167,17 +158,10 @@ const Dashboard = () => {
   const handleDeleteTranslation = async (translationId) => {
     try {
       await dispatch(deleteTranslation(translationId)).unwrap();
-      toast({
-        title: "Translation Deleted",
-        description: "The translation has been deleted successfully.",
-      });
+      toast(t('translationDeleted'));
     } catch (error) {
       console.error("Delete error:", error);
-      toast({
-        title: "Delete Failed",
-        description: error?.message || "Failed to delete translation. Please try again.",
-        variant: "destructive",
-      });
+      toast.error(error?.message || t('deleteError'));
     }
   };
 
@@ -189,9 +173,9 @@ const Dashboard = () => {
         transition={{ duration: 0.5 }}
         className="mb-8"
       >
-        <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('dashboard')}</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user?.email}. Manage your document translations here.
+          {t('welcomeBack')}, {user?.username}. {t('manageDocuments')}
         </p>
       </motion.div>
 
@@ -199,20 +183,20 @@ const Dashboard = () => {
         <TabsList className="grid grid-cols-2 w-full max-w-md">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload size={16} />
-            <span>Upload Document</span>
+            <span>{t('uploadDocument')}</span>
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <HistoryIcon size={16} />
-            <span>Translation History</span>
+            <span>{t('translationHistory')}</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Translate a Document</CardTitle>
+              <CardTitle>{t('translateDocument')}</CardTitle>
               <CardDescription>
-                Upload a document and select the target language for translation.
+                {t('uploadDescription')}
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleUpload}>
@@ -244,7 +228,7 @@ const Dashboard = () => {
                           size="sm" 
                           onClick={() => dispatch(setFile(null))}
                         >
-                          Remove
+                          {t('remove')}
                         </Button>
                       </div>
                     ) : (
@@ -252,9 +236,9 @@ const Dashboard = () => {
                         <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                           <Upload className="h-6 w-6 text-primary" />
                         </div>
-                        <h3 className="text-lg font-medium mb-2">Drop your document here</h3>
+                        <h3 className="text-lg font-medium mb-2">{t('fileUploadHeader')}</h3>
                         <p className="text-sm text-muted-foreground mb-4">
-                          Supports PDF, Word, Excel, PowerPoint, and plain text files
+                          {t('fileUploadDesc')}
                         </p>
                         <Input
                           id="file-upload"
@@ -264,7 +248,7 @@ const Dashboard = () => {
                         />
                         <Button type="button" asChild variant="outline">
                           <label htmlFor="file-upload" className="cursor-pointer">
-                            Browse files
+                            {t('browseFiles')}
                           </label>
                         </Button>
                       </>
@@ -273,13 +257,13 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="target-language">Target Language</Label>
+                  <Label htmlFor="target-language">{t('targetLanguage')}</Label>
                   <Select 
                     value={currentUpload.targetLanguage} 
                     onValueChange={(value) => dispatch(setTargetLanguage(value))}
                   >
                     <SelectTrigger id="target-language" className="w-full">
-                      <SelectValue placeholder="Select a language" />
+                      <SelectValue placeholder={t('selectLanguage')} />
                     </SelectTrigger>
                     <SelectContent>
                       {LANGUAGES.map((language) => (
@@ -300,10 +284,10 @@ const Dashboard = () => {
                   {currentUpload.status === "uploading" ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
+                      {t('uploading')}
                     </>
                   ) : (
-                    "Translate Document"
+                    t('translateButton')
                   )}
                 </Button>
               </CardFooter>
@@ -314,9 +298,9 @@ const Dashboard = () => {
         <TabsContent value="history" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Translation History</CardTitle>
+              <CardTitle>{t('translationHistory')}</CardTitle>
               <CardDescription>
-                View the status and download links for your previous translations.
+                {t('viewStatus')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -327,14 +311,14 @@ const Dashboard = () => {
               ) : translations.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
-                    You haven't translated any documents yet.
+                    {t('noTranslations')}
                   </p>
                   <Button 
                     variant="link" 
                     onClick={() => setActiveTab("upload")}
                     className="mt-2"
                   >
-                    Upload your first document
+                    {t('uploadFirst')}
                   </Button>
                 </div>
               ) : (
@@ -382,7 +366,7 @@ const Dashboard = () => {
                             translation.status === "failed" ? "text-destructive" : 
                             translation.status === "completed" ? "text-green-500" : ""
                           }`}>
-                            {translation.status}
+                            {t(translation.status)}
                           </span>
                         </div>
 
@@ -392,7 +376,7 @@ const Dashboard = () => {
                             variant="outline" 
                             onClick={() => handleDownload(translation.id)}
                           >
-                            Download
+                            {t('download')}
                           </Button>
                         )}
                         
@@ -402,14 +386,12 @@ const Dashboard = () => {
                             variant="outline"
                             className="text-destructive border-destructive hover:bg-destructive/10"
                             onClick={() => {
-                              toast({
-                                title: "Translation Error",
+                              toast(t('translationError'), {
                                 description: translation.errorMessage || "Unknown error occurred",
-                                variant: "destructive",
                               });
                             }}
                           >
-                            View Error
+                            {t('viewError')}
                           </Button>
                         )}
                         
@@ -426,15 +408,15 @@ const Dashboard = () => {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Translation</AlertDialogTitle>
+                              <AlertDialogTitle>{t('deleteTranslation')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete this translation? This action cannot be undone.
+                                {t('deleteConfirmation')}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                               <AlertDialogAction onClick={() => handleDeleteTranslation(translation.id)}>
-                                Delete
+                                {t('delete')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>

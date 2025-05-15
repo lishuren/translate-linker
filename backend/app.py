@@ -35,8 +35,13 @@ from app_auth import auth_router, get_user_id_from_token
 # Load environment variables
 load_dotenv()
 
-# Check if debug mode is enabled
-DEBUG_MODE = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+# Check if debug mode is enabled - look for any of these indicators
+DEBUG_MODE = (
+    os.getenv("DEBUG", "False").lower() == "true" or 
+    "--debug" in sys.argv or
+    "-d" in sys.argv or
+    any("--debug" in arg for arg in sys.argv)
+)
 
 def debug_log(message: str, data=None):
     """Log debug messages only if in debug mode"""
@@ -459,7 +464,7 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    debug = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+    debug = DEBUG_MODE
     
     print(f"[STARTUP] Starting server with debug mode: {debug}")
     print(f"[STARTUP] Command line args: {sys.argv}")

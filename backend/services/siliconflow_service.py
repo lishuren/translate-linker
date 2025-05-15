@@ -14,7 +14,14 @@ class SiliconFlowService:
         self.api_base = os.getenv("SILICONFLOW_API_BASE", "https://api.siliconflow.cn/v1/chat/completions")
         self.model_name = os.getenv("SILICONFLOW_MODEL_NAME", "Pro/deepseek-ai/DeepSeek-V3")
         self.temperature = float(os.getenv("LLM_TEMPERATURE", 0.1))
-        self.debug_mode = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+        
+        # Check if debug mode is enabled - look for any of these indicators
+        self.debug_mode = (
+            os.getenv("DEBUG", "False").lower() == "true" or 
+            "--debug" in sys.argv or
+            "-d" in sys.argv or
+            any("--debug" in arg for arg in sys.argv)
+        )
     
     def log_debug(self, message: str, data=None):
         """Log debug messages only if in debug mode"""
@@ -74,10 +81,12 @@ class SiliconFlowService:
                 # Debug info
                 print(f"[SILICONFLOW] API Request to model: {self.model_name}")
                 if self.debug_mode:
+                    masked_api_key = f"{self.api_key[:5]}...{self.api_key[-4:]}" if len(self.api_key) > 10 else "****"
                     self.log_debug("Full request URL", url)
                     self.log_debug("API Key configured", bool(self.api_key))
-                    self.log_debug("Authorization header", f"Bearer {self.api_key[:5]}...{self.api_key[-4:]}" if self.api_key else None)
+                    self.log_debug("Authorization header", f"Bearer {masked_api_key}")
                     self.log_debug("Request payload", payload)
+                    self.log_debug("Request messages", messages)
                 
                 async with session.post(url, headers=headers, json=payload) as response:
                     response_text = await response.text()
@@ -85,7 +94,7 @@ class SiliconFlowService:
                     
                     if self.debug_mode:
                         self.log_debug("Response headers", dict(response.headers))
-                        self.log_debug("Full response text", response_text[:1000] + ("..." if len(response_text) > 1000 else ""))
+                        self.log_debug("Full response text", response_text[:2000] + ("..." if len(response_text) > 2000 else ""))
                     
                     if response.status == 200:
                         data = json.loads(response_text)
@@ -94,17 +103,29 @@ class SiliconFlowService:
                         
                         if self.debug_mode:
                             self.log_debug("Content length", len(content))
-                            self.log_debug("Content preview", content[:100] + ("..." if len(content) > 100 else ""))
+                            self.log_debug("Content preview", content[:300] + ("..." if len(content) > 300 else ""))
                             self.log_debug("Model used", data.get("model", "unknown"))
                             self.log_debug("Token usage", data.get("usage", {}))
                         
                         return content
                     else:
-                        print(f"[SILICONFLOW] API error ({response.status}): {response_text}")
-                        raise Exception(f"SiliconFlow API error ({response.status}): {response_text}")
+                        error_msg = f"SiliconFlow API error ({response.status}): {response_text}"
+                        print(f"[SILICONFLOW] {error_msg}")
+                        if self.debug_mode:
+                            self.log_debug("Error details", {
+                                "status_code": response.status,
+                                "response_text": response_text,
+                                "headers": dict(response.headers)
+                            })
+                        raise Exception(error_msg)
                         
         except Exception as e:
-            print(f"[SILICONFLOW] Error using SiliconFlow API: {str(e)}")
+            error_msg = f"Error using SiliconFlow API: {str(e)}"
+            print(f"[SILICONFLOW] {error_msg}")
             if self.debug_mode:
-                print(f"[SILICONFLOW_DEBUG] Exception traceback: {traceback.format_exc()}")
+                self.log_debug("Exception details", {
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)
+                })
+                self.log_debug("Exception traceback", traceback.format_exc())
             raise

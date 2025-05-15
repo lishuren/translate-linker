@@ -208,6 +208,79 @@ const translations: Translations = {
     en: 'EN | 中文',
     zh: 'EN | 中文',
   },
+  // Additional translations
+  welcomeBack: {
+    en: 'Welcome back',
+    zh: '欢迎回来',
+  },
+  translateDocument: {
+    en: 'Translate a Document',
+    zh: '翻译文档',
+  },
+  uploadDescription: {
+    en: 'Upload a document and select the target language for translation.',
+    zh: '上传文档并选择翻译的目标语言。',
+  },
+  translateButton: {
+    en: 'Translate Document',
+    zh: '翻译文档',
+  },
+  noTranslations: {
+    en: "You haven't translated any documents yet.",
+    zh: "您还没有翻译任何文档。",
+  },
+  uploadFirst: {
+    en: "Upload your first document",
+    zh: "上传您的第一个文档",
+  },
+  deleteTranslation: {
+    en: "Delete Translation",
+    zh: "删除翻译",
+  },
+  deleteConfirmation: {
+    en: "Are you sure you want to delete this translation? This action cannot be undone.",
+    zh: "您确定要删除此翻译吗？此操作无法撤消。",
+  },
+  translationDeleted: {
+    en: "Translation deleted successfully",
+    zh: "翻译已成功删除",
+  },
+  translationError: {
+    en: "Translation Error",
+    zh: "翻译错误",
+  },
+  documentUploaded: {
+    en: "Document Uploaded",
+    zh: "文档已上传",
+  },
+  uploadedDescription: {
+    en: "Your document is being translated. You'll receive an email when it's ready.",
+    zh: "您的文档正在翻译中。完成后您将收到电子邮件通知。",
+  },
+  uploadFailed: {
+    en: "Upload Failed",
+    zh: "上传失败",
+  },
+  tryAgain: {
+    en: "Failed to upload document. Please try again.",
+    zh: "上传文档失败。请重试。",
+  },
+  apiConfigError: {
+    en: "No API keys configured for any LLM provider. Please configure at least one provider.",
+    zh: "未为任何LLM提供商配置API密钥。请至少配置一个提供商。",
+  },
+  languageToggle: {
+    en: 'EN | 中文',
+    zh: '英文 | 中文',
+  },
+  english: {
+    en: 'English',
+    zh: '英文',
+  },
+  chineseSimplified: {
+    en: 'Chinese (Simplified)',
+    zh: '简体中文',
+  }
 };
 
 interface LanguageContextType {

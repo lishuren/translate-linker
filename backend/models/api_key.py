@@ -21,8 +21,13 @@ class APIKeySettings(BaseModel):
     @classmethod
     def from_env(cls) -> "APIKeySettings":
         """Create settings from environment variables"""
-        # Check if debug mode is enabled
-        debug_mode = os.getenv("DEBUG", "False").lower() == "true" or "--debug" in sys.argv
+        # Check if debug mode is enabled - look for any of these indicators
+        debug_mode = (
+            os.getenv("DEBUG", "False").lower() == "true" or 
+            "--debug" in sys.argv or
+            "-d" in sys.argv or
+            any("--debug" in arg for arg in sys.argv)
+        )
         
         # Explicitly load the default provider from environment
         default_provider = os.getenv("DEFAULT_LLM_MODEL", "openai").lower()
@@ -69,38 +74,45 @@ class APIKeySettings(BaseModel):
         if self.debug_mode:
             self.log_debug(f"Looking up key for provider", provider)
         
-        if provider in ["openai", "chatgpt"]:
-            return self.openai_key
-        elif provider in ["anthropic", "claude"]:
-            return self.anthropic_key
-        elif provider in ["google", "vertex", "grok"]:
-            return self.google_key
-        elif provider == "groq":
-            return self.groq_key
-        elif provider == "cohere":
-            return self.cohere_key
-        elif provider == "huggingface":
-            return self.huggingface_key
-        elif provider == "deepseek":
-            return self.deepseek_key
-        elif provider == "siliconflow":
-            if self.siliconflow_key:
-                return self.siliconflow_key
-            else:
-                print(f"Warning: No API key for provider {provider}. Using default provider.")
-                if provider == self.default_provider:
-                    # If the requested provider is the default provider but has no key,
-                    # try to find any available provider with a key
-                    for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek"]:
-                        key = self.get_key_for_provider(p)
-                        if key:
-                            print(f"[API KEYS] Falling back to provider: {p} since default provider has no key")
-                            return key
-                return self.get_key_for_provider(self.default_provider)
-        else:
-            # Fall back to default provider
-            print(f"[API KEYS] Unknown provider '{provider}', falling back to default provider: {self.default_provider}")
+        # Dictionary to map provider names to attribute names
+        provider_map = {
+            "openai": "openai_key",
+            "chatgpt": "openai_key",
+            "anthropic": "anthropic_key",
+            "claude": "anthropic_key",
+            "google": "google_key",
+            "vertex": "google_key",
+            "grok": "google_key",
+            "groq": "groq_key",
+            "cohere": "cohere_key",
+            "huggingface": "huggingface_key",
+            "deepseek": "deepseek_key",
+            "siliconflow": "siliconflow_key"
+        }
+        
+        # Get the attribute name for this provider
+        attr_name = provider_map.get(provider)
+        
+        if attr_name:
+            key = getattr(self, attr_name)
+            if key:
+                return key
+                
+        # If we get here, either the provider is unknown or we don't have a key for it
+        if provider != self.default_provider:
+            print(f"[API KEYS] No key for provider '{provider}', falling back to default provider: {self.default_provider}")
             return self.get_key_for_provider(self.default_provider)
+        else:
+            # We're already at the default provider and don't have a key, try to find any provider with a key
+            for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek", "siliconflow"]:
+                if p != provider:  # Skip the current default provider we already checked
+                    test_attr = provider_map.get(p)
+                    if test_attr and getattr(self, test_attr):
+                        print(f"[API KEYS] Default provider '{provider}' has no key, using alternate provider: {p}")
+                        return getattr(self, test_attr)
+        
+        print(f"[API KEYS] Warning: No API key found for any provider")
+        return None
     
     def has_key_for_provider(self, provider: str) -> bool:
         """Check if we have an API key for the specified provider"""
