@@ -21,9 +21,10 @@ class APIKeySettings(BaseModel):
         # Explicitly load the default provider from environment
         default_provider = os.getenv("DEFAULT_LLM_MODEL", "openai").lower()
         
-        # Print debug information
-        print(f"Loading API key settings with default provider: {default_provider}")
-        print(f"SiliconFlow API key configured: {bool(os.getenv('SILICONFLOW_API_KEY'))}")
+        # Print detailed debug information
+        print(f"[API KEYS] Loading API key settings with default provider: {default_provider}")
+        print(f"[API KEYS] SiliconFlow API key configured: {bool(os.getenv('SILICONFLOW_API_KEY'))}")
+        print(f"[API KEYS] SiliconFlow API base: {os.getenv('SILICONFLOW_API_BASE', 'Not set')}")
         
         return cls(
             openai_key=os.getenv("OPENAI_API_KEY"),
@@ -42,7 +43,7 @@ class APIKeySettings(BaseModel):
         provider = provider.lower() if provider else self.default_provider
         
         # Print debug info for troubleshooting
-        print(f"Getting API key for provider: {provider}, default provider is: {self.default_provider}")
+        print(f"[API KEYS] Getting API key for provider: {provider}, default provider is: {self.default_provider}")
         
         if provider in ["openai", "chatgpt"]:
             return self.openai_key
@@ -61,8 +62,8 @@ class APIKeySettings(BaseModel):
         elif provider == "siliconflow":
             return self.siliconflow_key
         else:
-            # Default to configured default provider
-            print(f"Unknown provider '{provider}', falling back to default provider: {self.default_provider}")
+            # Fall back to default provider
+            print(f"[API KEYS] Unknown provider '{provider}', falling back to default provider: {self.default_provider}")
             return self.get_key_for_provider(self.default_provider)
     
     def has_key_for_provider(self, provider: str) -> bool:
@@ -71,7 +72,7 @@ class APIKeySettings(BaseModel):
         has_key = key is not None and len(key) > 0
         
         # Print debug info
-        print(f"Provider '{provider}' has key: {has_key}")
+        print(f"[API KEYS] Provider '{provider}' has key: {has_key}")
         
         return has_key
     
@@ -86,5 +87,6 @@ class APIKeySettings(BaseModel):
             "huggingface": self.has_key_for_provider("huggingface"),
             "deepseek": self.has_key_for_provider("deepseek"),
             "siliconflow": self.has_key_for_provider("siliconflow"),
-            "default_provider": self.default_provider
+            "default_provider": self.default_provider,
+            "configured_providers_count": sum(1 for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek", "siliconflow"] if self.has_key_for_provider(p))
         }

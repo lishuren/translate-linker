@@ -46,6 +46,7 @@ export const translationApi = {
       const response = await axios.get(`${API_BASE_URL}/translation/history`, {
         headers: authHeader(),
       });
+      console.log("Translation history response:", response.data);
       return response.data;
     } catch (error: any) {
       console.error("Error fetching translation history:", error);
@@ -55,12 +56,18 @@ export const translationApi = {
   
   deleteTranslation: async (translationId: string) => {
     try {
+      console.log(`Deleting translation with ID: ${translationId}`);
       const response = await axios.delete(`${API_BASE_URL}/translation/${translationId}`, {
         headers: authHeader(),
       });
+      console.log("Delete response:", response.data);
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.detail || error.message;
+      console.error("Error deleting translation:", error?.response?.data || error);
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      throw new Error(error.message || "Failed to delete translation");
     }
   },
   

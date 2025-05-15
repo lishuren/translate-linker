@@ -76,11 +76,16 @@ async def upload_document(
     authorization: Optional[str] = Header(None)
 ):
     try:
+        # Log the request details
+        print(f"[UPLOAD] Processing upload request for file: {file.filename}, target language: {targetLanguage}, provider: {llmProvider or 'default'}")
+        
         # Get user ID from token
         user_id = get_user_id_from_token(authorization)
+        print(f"[UPLOAD] Request from user ID: {user_id}")
         
         # Check if user is allowed to select model
         is_allowed = await translation_service.is_model_selection_allowed(user_id)
+        print(f"[UPLOAD] User model selection allowed: {is_allowed}")
         
         # Use the provided LLM provider or the default one
         selected_provider = llmProvider
@@ -89,13 +94,14 @@ async def upload_document(
         if not is_allowed and llmProvider:
             # Get the user's configured provider instead
             selected_provider = user_settings_service.get_user_llm_provider(user_id)
+            print(f"[UPLOAD] User selection not allowed, using user-configured provider: {selected_provider}")
         
         # If no provider specified, use the default provider from environment
         if not selected_provider:
             # Get default from API keys settings
             api_keys = APIKeySettings.from_env()
             selected_provider = api_keys.default_provider
-            print(f"No provider specified, using default provider: {selected_provider}")
+            print(f"[UPLOAD] No provider specified, using default provider: {selected_provider}")
         
         # Verify that we have an API key for the selected provider
         api_keys = APIKeySettings.from_env()
@@ -103,6 +109,8 @@ async def upload_document(
             # If no API key for selected provider, find a provider we do have a key for
             available_providers = [p for p in ["openai", "anthropic", "google", "groq", "cohere", "huggingface", "deepseek", "siliconflow"] 
                                 if api_keys.has_key_for_provider(p)]
+            
+            print(f"[UPLOAD] No API key for {selected_provider}, available providers: {available_providers}")
             
             if not available_providers:
                 raise HTTPException(
@@ -112,13 +120,15 @@ async def upload_document(
             
             # Use the first available provider
             selected_provider = available_providers[0]
-            print(f"No API key for {selected_provider}, using {available_providers[0]} instead")
+            print(f"[UPLOAD] Using available provider instead: {selected_provider}")
             
         # Generate unique ID for this translation
         translation_id = str(uuid.uuid4())
+        print(f"[UPLOAD] Generated translation ID: {translation_id}")
         
         # Save the uploaded file
         file_path = await file_service.save_upload(file, translation_id)
+        print(f"[UPLOAD] Saved file to: {file_path}")
         
         # Create translation record
         translation = Translation(
@@ -131,6 +141,7 @@ async def upload_document(
         
         # Check if RAG service should be used (based on global config)
         use_rag = global_config.get_config().get('translation_settings', {}).get('rag_enabled', True)
+        print(f"[UPLOAD] Using RAG for translation: {use_rag}")
         
         if use_rag:
             # Start translation in background with RAG
@@ -155,60 +166,83 @@ async def upload_document(
                 user_id=user_id
             )
         
+        print(f"[UPLOAD] Translation processing started in background for ID: {translation_id}")
         return {"translation": translation.dict()}
     
     except Exception as e:
+        print(f"[ERROR] Upload document error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
 
 @app.get("/api/translation/status/{translation_id}", response_model=TranslationStatusResponse)
 async def check_translation_status(translation_id: str):
     try:
+        print(f"[STATUS] Checking status for translation ID: {translation_id}")
         status = await translation_service.get_translation_status(translation_id)
         if not status:
+            print(f"[STATUS] Translation not found: {translation_id}")
             raise HTTPException(status_code=404, detail="Translation not found")
+        
+        print(f"[STATUS] Translation status: {status}")
         return status
     except Exception as e:
+        print(f"[ERROR] Status check error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error checking translation status: {str(e)}")
 
 @app.get("/api/translation/download/{translation_id}")
 async def download_translation(translation_id: str):
     try:
+        print(f"[DOWNLOAD] Request to download translation ID: {translation_id}")
         file_path = await translation_service.get_translation_file(translation_id)
         if not file_path:
+            print(f"[DOWNLOAD] Translation file not found: {translation_id}")
             raise HTTPException(status_code=404, detail="Translation file not found")
         
+        print(f"[DOWNLOAD] Serving file: {file_path}")
         return FileResponse(
             path=file_path,
             filename=os.path.basename(file_path),
             media_type="application/octet-stream"
         )
     except Exception as e:
+        print(f"[ERROR] Download error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error downloading translation: {str(e)}")
 
 @app.delete("/api/translation/{translation_id}")
 async def delete_translation(translation_id: str, authorization: Optional[str] = Header(None)):
     try:
+        print(f"[DELETE] Request to delete translation ID: {translation_id}")
+        
         # Get user ID from token
         user_id = get_user_id_from_token(authorization)
+        print(f"[DELETE] Request from user ID: {user_id}")
         
         # Delete the translation
         success = await translation_service.delete_translation(translation_id, user_id)
+        
         if not success:
+            print(f"[DELETE] Failed to delete translation: {translation_id}. Not found or no permission.")
             raise HTTPException(status_code=404, detail="Translation not found or you don't have permission to delete it")
         
+        print(f"[DELETE] Successfully deleted translation: {translation_id}")
         return {"success": True, "message": "Translation deleted successfully"}
     except Exception as e:
+        print(f"[ERROR] Delete translation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error deleting translation: {str(e)}")
 
 @app.get("/api/translation/history")
 async def get_translation_history(authorization: Optional[str] = Header(None)):
     try:
+        print("[HISTORY] Request for translation history")
+        
         # Get user ID from token
         user_id = get_user_id_from_token(authorization)
+        print(f"[HISTORY] Request from user ID: {user_id}")
         
         translations = await translation_service.get_all_translations(user_id)
+        print(f"[HISTORY] Found {len(translations)} translations for user {user_id}")
         return {"translations": translations}
     except Exception as e:
+        print(f"[ERROR] Translation history error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving translation history: {str(e)}")
 
 @app.get("/api/config/model-selection-allowed")
@@ -221,6 +255,7 @@ async def is_model_selection_allowed(authorization: Optional[str] = Header(None)
         is_allowed = await translation_service.is_model_selection_allowed(user_id)
         return {"allowed": is_allowed}
     except Exception as e:
+        print(f"[ERROR] Model selection check error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error checking model selection permission: {str(e)}")
 
 @app.get("/api/config/available-web-translation-services")
@@ -230,12 +265,14 @@ async def get_available_web_translation_services():
         services = await translation_service.get_available_web_translation_services()
         return {"services": services}
     except Exception as e:
+        print(f"[ERROR] Web translation services error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving web translation services: {str(e)}")
 
 @app.get("/api/config/system-info")
 async def get_system_info():
     """Get system configuration information"""
     try:
+        print("[CONFIG] Request for system info")
         config = global_config.get_config(reload=True)
         return {
             "config": {
@@ -251,11 +288,13 @@ async def get_system_info():
             }
         }
     except Exception as e:
+        print(f"[ERROR] System info error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")
 
 @app.get("/api/config/api-key-status")
 async def check_api_key_status():
     """Check if API keys are configured for each provider"""
+    print("[CONFIG] Checking API key status")
     api_keys = APIKeySettings.from_env()
     
     # Get status for all providers
@@ -266,10 +305,26 @@ async def check_api_key_status():
     status["has_default_key"] = api_keys.has_key_for_provider(api_keys.default_provider)
     
     # Get count of configured providers
-    configured_providers = sum(1 for v in status.values() if isinstance(v, bool) and v)
+    configured_providers = sum(1 for k, v in status.items() if isinstance(v, bool) and v and k != "has_default_key")
     status["configured_providers_count"] = configured_providers
     
+    print(f"[CONFIG] API key status: {status}")
     return {"api_key_status": status}
+
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    print("[SERVER] Starting up LingoAIO API server")
+    print(f"[SERVER] Environment configuration:")
+    print(f"[SERVER] DEFAULT_LLM_MODEL: {os.getenv('DEFAULT_LLM_MODEL', 'not set')}")
+    print(f"[SERVER] SILICONFLOW_API_KEY: {'configured' if os.getenv('SILICONFLOW_API_KEY') else 'not configured'}")
+    print(f"[SERVER] SILICONFLOW_API_BASE: {os.getenv('SILICONFLOW_API_BASE', 'not set')}")
+    print(f"[SERVER] SILICONFLOW_MODEL_NAME: {os.getenv('SILICONFLOW_MODEL_NAME', 'not set')}")
+    print(f"[SERVER] RAG_ENABLED: {os.getenv('RAG_ENABLED', 'not set')}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("[SERVER] Shutting down LingoAIO API server")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
