@@ -6,6 +6,7 @@ export interface EnvironmentConfig {
   defaultLanguage: string;
   debug: boolean;
   isDevelopment: boolean;
+  appName: string;  // Added appName property
 }
 
 const getEnvironment = (): EnvironmentConfig => {
@@ -22,7 +23,8 @@ const getEnvironment = (): EnvironmentConfig => {
     applicationEnv: isProd ? 'production' : 'development',
     defaultLanguage: 'en',
     debug,
-    isDevelopment: !isProd
+    isDevelopment: !isProd,
+    appName: import.meta.env.VITE_APP_NAME || 'LingoAIO'  // Default app name
   };
 };
 
