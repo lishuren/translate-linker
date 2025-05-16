@@ -21,5 +21,12 @@
     "preferred_languages": ["en", "zh", "ko", "ru"],
     "admin_privileges": true,
     "last_updated": "2025-05-16T08:15:00.000Z"
+  },
+  "58dbb197-06a9-466a-8f66-699558ff2ba3": {
+    "llm_provider": "siliconflow",
+    "allow_model_selection": true,
+    "web_translation_service": "none",
+    "preferred_languages": ["en", "zh", "ko", "jp"],
+    "last_updated": "2025-05-16T15:30:00.000Z"
   }
 }

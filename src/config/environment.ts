@@ -5,6 +5,7 @@ export interface EnvironmentConfig {
   applicationEnv: string;
   defaultLanguage: string;
   debug: boolean;
+  isDevelopment: boolean;
 }
 
 const getEnvironment = (): EnvironmentConfig => {
@@ -20,7 +21,8 @@ const getEnvironment = (): EnvironmentConfig => {
     apiProxyEnabled: true, // Use API proxy in all environments
     applicationEnv: isProd ? 'production' : 'development',
     defaultLanguage: 'en',
-    debug
+    debug,
+    isDevelopment: !isProd
   };
 };
 

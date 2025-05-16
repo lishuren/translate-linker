@@ -62,7 +62,6 @@ Create a `.env` file in the backend directory with these minimum settings:
 ```
 # App configuration
 SECRET_KEY=your_secret_key_here
-DEBUG=True  # Set to True to enable debug mode
 
 # LLM Settings
 DEFAULT_LLM_MODEL=siliconflow  # or openai, anthropic, etc.
@@ -73,9 +72,10 @@ SILICONFLOW_MODEL_NAME=Pro/deepseek-ai/DeepSeek-V3
 # Server Settings
 PORT=5000
 HOST=0.0.0.0
+DEBUG=True  # Set to True to enable debug mode
 ```
 
-### Starting the Backend Server
+### Starting the Backend Server with Debug Mode
 
 To run the backend server with debug logging:
 
@@ -83,7 +83,6 @@ To run the backend server with debug logging:
 # Navigate to the backend directory
 cd backend
 
-# Set DEBUG=True in your .env file or use:
 # On Windows:
 set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 
@@ -91,14 +90,27 @@ set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 DEBUG=True uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 ```
 
+Note: Do not use `--debug` flag with uvicorn as it's not supported. Instead, set the `DEBUG=True` environment variable.
+
 ### Debug Mode Features
 
-When DEBUG=True is set in the .env file or environment variables:
+When `DEBUG=True` is set in the `.env` file or environment variables:
+
 - Detailed API conversations are logged
 - Bearer tokens are shown (partially masked for security)
 - Request/response payloads are displayed
-- Error traces are printed
-- Performance metrics (timing) are included
+- API key configuration status
+- Error traces and stacktraces are printed
+- Performance metrics (timing) for LLM requests are included
+- Detailed logs for translation processing steps
+
+### Common Debug Output to Look For
+
+- `[DEBUG]` prefix indicates detailed debug information
+- `[API_KEYS_DEBUG]` shows API key configuration details
+- `[LLM_DEBUG]` displays LLM API calls and responses
+- `[TRANSLATION_DEBUG]` shows document processing information
+- `[ERROR_DEBUG]` provides detailed error information including stack traces
 
 ### Testing LLM API Directly
 
@@ -114,7 +126,7 @@ http://localhost:5000/api/debug/llm-test/siliconflow?prompt=Translate%20this%20t
 
 ### Downloading Translated Files
 
-Once a translation is completed:
+Once a translation is completed, you can download the file in several ways:
 
 1. Via Web UI:
    - Go to the dashboard
@@ -126,21 +138,21 @@ Once a translation is completed:
    GET /api/translation/download/{translation_id}
    ```
 
-3. File System Location:
+3. File Location on Server:
    - Translated files are stored in the `translations` directory
    - Files are named as `{translation_id}_{original_filename}`
+   - Format is preserved from the original (e.g., .txt, .pdf, .docx)
 
-### Common Debug Issues
+### Troubleshooting Common Issues
 
 If you encounter translation errors:
 
-1. Check API key configuration in .env
-2. Verify the DEBUG=True is set to see detailed error logs
-3. Look for error messages in console output
-4. Test the LLM provider directly using the debug endpoint
-5. Check the translation files directory for any output
-6. Verify network connectivity to the LLM API service
-7. Check file permissions for read/write access to necessary directories
+1. Check the server console for detailed error messages with `DEBUG=True`
+2. Verify API keys are properly configured in .env
+3. Monitor the LLM API calls in the debug logs to see the exact request/response 
+4. Check the translation files directory for any partial outputs
+5. Verify network connectivity to the LLM API service
+6. Examine the file format and ensure it's properly supported
 
 For additional backend setup details, please refer to the `backend/SETUP.md` file.
 

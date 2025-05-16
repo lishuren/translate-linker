@@ -14,37 +14,53 @@ class GlobalConfigService:
         self.last_loaded = time.time()
         self.reload_interval = 60  # Reload config if older than 60 seconds
         
-        # Set defaults from environment if config is empty
-        if not self.config:
-            self.config = {
-                "llm_settings": {
-                    "default_provider": os.getenv("DEFAULT_LLM_MODEL", "openai"),
-                    "temperature": float(os.getenv("LLM_TEMPERATURE", 0.1)),
-                    "providers": {
-                        "openai": {"model": os.getenv("OPENAI_MODEL_NAME", "gpt-4o")},
-                        "anthropic": {"model": os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-sonnet-20240229")},
-                        "google": {"model": os.getenv("GOOGLE_MODEL_NAME", "gemini-pro")},
-                        "groq": {"model": os.getenv("GROQ_MODEL_NAME", "llama-3-70b-8192")},
-                        "cohere": {"model": os.getenv("COHERE_MODEL_NAME", "command")},
-                        "huggingface": {"model": os.getenv("HUGGINGFACE_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2")},
-                        "deepseek": {"model": os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat")},
-                        "siliconflow": {"model": os.getenv("SILICONFLOW_MODEL_NAME", "siliconflow-1")}
-                    }
-                },
-                "translation_settings": {
-                    "default_service": os.getenv("WEB_TRANSLATION_SERVICE", "none"),
-                    "chunk_size": int(os.getenv("CHUNK_SIZE", 1000)),
-                    "chunk_overlap": int(os.getenv("CHUNK_OVERLAP", 200)),
-                    "max_file_size_mb": int(os.getenv("MAX_FILE_SIZE_MB", 20)),
-                    "rag_enabled": True
-                },
-                "database_settings": {
-                    "use_database": os.getenv("USE_DATABASE", "false").lower() == "true",
-                    "db_url": os.getenv("DATABASE_URL", "sqlite:///translations.db"),
-                }
-            }
-            self._save_config()
-    
+        # Always prioritize environment variables
+        self._update_from_env()
+        
+    def _update_from_env(self):
+        """Update config by prioritizing environment variables"""
+        # LLM settings
+        self.config.setdefault("llm_settings", {})
+        self.config["llm_settings"]["default_provider"] = os.getenv("DEFAULT_LLM_MODEL", 
+                                                                  self.config["llm_settings"].get("default_provider", "openai"))
+        self.config["llm_settings"]["temperature"] = float(os.getenv("LLM_TEMPERATURE", 
+                                                                  self.config["llm_settings"].get("temperature", 0.1)))
+        
+        # Provider models
+        self.config["llm_settings"].setdefault("providers", {})
+        
+        providers = {
+            "openai": {"model": os.getenv("OPENAI_MODEL_NAME", "gpt-4o")},
+            "anthropic": {"model": os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-sonnet-20240229")},
+            "google": {"model": os.getenv("GOOGLE_MODEL_NAME", "gemini-pro")},
+            "groq": {"model": os.getenv("GROQ_MODEL_NAME", "llama-3-70b-8192")},
+            "cohere": {"model": os.getenv("COHERE_MODEL_NAME", "command")},
+            "huggingface": {"model": os.getenv("HUGGINGFACE_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2")},
+            "deepseek": {"model": os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat")},
+            "siliconflow": {"model": os.getenv("SILICONFLOW_MODEL_NAME", "siliconflow-1")}
+        }
+        
+        for provider, settings in providers.items():
+            self.config["llm_settings"]["providers"][provider] = settings
+        
+        # Translation settings
+        self.config.setdefault("translation_settings", {})
+        self.config["translation_settings"]["default_service"] = os.getenv("WEB_TRANSLATION_SERVICE", 
+                                                                        self.config["translation_settings"].get("default_service", "none"))
+        self.config["translation_settings"]["chunk_size"] = int(os.getenv("CHUNK_SIZE", 
+                                                                       self.config["translation_settings"].get("chunk_size", 1000)))
+        self.config["translation_settings"]["chunk_overlap"] = int(os.getenv("CHUNK_OVERLAP", 
+                                                                          self.config["translation_settings"].get("chunk_overlap", 200)))
+        self.config["translation_settings"]["max_file_size_mb"] = int(os.getenv("MAX_FILE_SIZE_MB", 
+                                                                             self.config["translation_settings"].get("max_file_size_mb", 20)))
+        self.config["translation_settings"]["rag_enabled"] = os.getenv("RAG_ENABLED", "true").lower() == "true"
+        
+        # Database settings
+        self.config.setdefault("database_settings", {})
+        self.config["database_settings"]["use_database"] = os.getenv("USE_DATABASE", "false").lower() == "true"
+        self.config["database_settings"]["db_url"] = os.getenv("DATABASE_URL", 
+                                                            self.config["database_settings"].get("db_url", "sqlite:///translations.db"))
+        
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from file"""
         try:
@@ -71,6 +87,7 @@ class GlobalConfigService:
         """Get the current configuration, optionally reloading from disk"""
         if reload or (time.time() - self.last_loaded) > self.reload_interval:
             self.config = self._load_config()
+            self._update_from_env()  # Always prioritize environment variables
             self.last_loaded = time.time()
         return self.config
     
