@@ -54,6 +54,96 @@ After adding your custom domain, you'll need to configure your DNS settings to p
 2. Install the dependencies with `npm install`
 3. Start the development server with `npm run dev`
 
+## Backend Setup and Debugging
+
+### Required Environment Variables
+
+Create a `.env` file in the backend directory with these minimum settings:
+```
+# App configuration
+SECRET_KEY=your_secret_key_here
+DEBUG=True  # Set to True to enable debug mode
+
+# LLM Settings
+DEFAULT_LLM_MODEL=siliconflow  # or openai, anthropic, etc.
+SILICONFLOW_API_KEY=your_api_key_here
+SILICONFLOW_API_BASE=https://api.siliconflow.cn/v1/chat/completions
+SILICONFLOW_MODEL_NAME=Pro/deepseek-ai/DeepSeek-V3
+
+# Server Settings
+PORT=5000
+HOST=0.0.0.0
+```
+
+### Starting the Backend Server
+
+To run the backend server with debug logging:
+
+```sh
+# Navigate to the backend directory
+cd backend
+
+# Set DEBUG=True in your .env file or use:
+# On Windows:
+set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+
+# On macOS/Linux:
+DEBUG=True uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+```
+
+### Debug Mode Features
+
+When DEBUG=True is set in the .env file or environment variables:
+- Detailed API conversations are logged
+- Bearer tokens are shown (partially masked for security)
+- Request/response payloads are displayed
+- Error traces are printed
+- Performance metrics (timing) are included
+
+### Testing LLM API Directly
+
+For direct testing of the LLM API integration:
+```
+GET /api/debug/llm-test/{provider}?prompt=your_test_prompt
+```
+
+Example URL:
+```
+http://localhost:5000/api/debug/llm-test/siliconflow?prompt=Translate%20this%20to%20French:%20Hello%20world
+```
+
+### Downloading Translated Files
+
+Once a translation is completed:
+
+1. Via Web UI:
+   - Go to the dashboard
+   - Find your completed translation
+   - Click the "Download" button
+
+2. Via Direct API:
+   ```
+   GET /api/translation/download/{translation_id}
+   ```
+
+3. File System Location:
+   - Translated files are stored in the `translations` directory
+   - Files are named as `{translation_id}_{original_filename}`
+
+### Common Debug Issues
+
+If you encounter translation errors:
+
+1. Check API key configuration in .env
+2. Verify the DEBUG=True is set to see detailed error logs
+3. Look for error messages in console output
+4. Test the LLM provider directly using the debug endpoint
+5. Check the translation files directory for any output
+6. Verify network connectivity to the LLM API service
+7. Check file permissions for read/write access to necessary directories
+
+For additional backend setup details, please refer to the `backend/SETUP.md` file.
+
 ## Web3 projects
 
 Note: If you're working with Web3 technology, please be aware of the following:
@@ -61,56 +151,3 @@ Note: If you're working with Web3 technology, please be aware of the following:
 - The Preview page in Lovable currently has a blocker for Web3 technology.
 - For MetaMask, even in the local preview, you need to open the preview in a new tab using the dedicated button.
 - Your deployed app will work perfectly fine with Web3 technologies.
-
-## Custom domains
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
-
-## Backend Setup and Debug Mode
-
-### Starting the Backend
-
-To run the backend server:
-
-```sh
-# Navigate to the backend directory
-cd backend
-
-# Standard mode
-uvicorn app:app --host 0.0.0.0 --port 5000 --reload
-
-# Debug mode - provides detailed logging including API conversations and bearer tokens
-# Option 1: Set the DEBUG environment variable before running uvicorn
-# On Windows
-set DEBUG=True && uvicorn app:app --host 0.0.0.0 --port 5000 --reload
-
-# On macOS/Linux
-DEBUG=True uvicorn app:app --host 0.0.0.0 --port 5000 --reload
-
-# Option 2: Add DEBUG=True to your .env file
-```
-
-Important: Uvicorn doesn't support a `--debug` flag directly. Instead, use the DEBUG environment variable as shown above.
-
-### Downloading Translated Files
-
-Once a translation is completed:
-
-1. Navigate to the dashboard in the application
-2. Find your completed translation in the list (marked as "Completed")
-3. Click the "Download" button next to the completed translation
-4. The file will be downloaded to your computer with the translated content
-
-Alternatively, you can access the download API directly at:
-`/api/translation/download/{translation_id}`
-
-Where `translation_id` is the unique identifier for your translation. This ID is provided when you submit a document for translation and can also be found in the translation history.
-
-### Translation Failure Debugging
-
-If a translation fails:
-
-1. Check that your LLM provider API keys are correctly configured in the backend .env file
-2. Use debug mode to see detailed API conversation logs
-3. View the specific error by clicking "View Error" on the failed translation in the dashboard
-4. Check the server logs for more detailed information

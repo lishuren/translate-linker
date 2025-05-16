@@ -1,0 +1,25 @@
+
+{
+  "sample_user_1": {
+    "llm_provider": "openai",
+    "allow_model_selection": true,
+    "web_translation_service": "google",
+    "preferred_languages": ["en", "es", "fr"],
+    "last_updated": "2025-05-16T10:00:00.000Z"
+  },
+  "sample_user_2": {
+    "llm_provider": "anthropic",
+    "allow_model_selection": false,
+    "web_translation_service": "none",
+    "preferred_languages": ["en", "ja", "zh"],
+    "last_updated": "2025-05-16T09:30:00.000Z"
+  },
+  "admin": {
+    "llm_provider": "siliconflow",
+    "allow_model_selection": true,
+    "web_translation_service": "none",
+    "preferred_languages": ["en", "zh", "ko", "ru"],
+    "admin_privileges": true,
+    "last_updated": "2025-05-16T08:15:00.000Z"
+  }
+}

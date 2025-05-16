@@ -3,6 +3,7 @@ import uuid
 import time
 import sys
 import traceback
+import json
 from typing import Dict, List, Optional
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Query, Depends, Header
@@ -35,21 +36,30 @@ from app_auth import auth_router, get_user_id_from_token
 # Load environment variables
 load_dotenv()
 
-# Check if debug mode is enabled - look for any of these indicators
-DEBUG_MODE = (
-    os.getenv("DEBUG", "False").lower() == "true" or 
-    "--debug" in sys.argv or
-    "-d" in sys.argv or
-    any("--debug" in arg for arg in sys.argv)
-)
+# Check if debug mode is enabled from .env first, then command line args
+DEBUG_MODE = os.getenv("DEBUG", "False").lower() == "true"
 
-def debug_log(message: str, data=None):
+# Enable more verbose debugging
+VERBOSE_DEBUG = DEBUG_MODE
+
+def debug_log(message: str, data=None, verbose=False):
     """Log debug messages only if in debug mode"""
-    if DEBUG_MODE:
+    if DEBUG_MODE and (not verbose or (verbose and VERBOSE_DEBUG)):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if data:
-            print(f"[DEBUG] {message}: {data}")
+            if isinstance(data, dict) or isinstance(data, list):
+                try:
+                    # Pretty print JSON with indentation
+                    pretty_data = json.dumps(data, indent=2, default=str)
+                    print(f"[DEBUG {timestamp}] {message}:\n{pretty_data}")
+                except:
+                    print(f"[DEBUG {timestamp}] {message}: {data}")
+            else:
+                print(f"[DEBUG {timestamp}] {message}: {data}")
         else:
-            print(f"[DEBUG] {message}")
+            print(f"[DEBUG {timestamp}] {message}")
+
+print(f"[SERVER] Starting with DEBUG_MODE: {DEBUG_MODE}")
 
 app = FastAPI(
     title="LingoAIO API",
@@ -103,6 +113,14 @@ async def upload_document(
         
         if DEBUG_MODE:
             debug_log(f"Authorization header", authorization[:15] + "..." if authorization else None)
+            debug_log(f"Upload details", {
+                "filename": file.filename, 
+                "size": file.size if hasattr(file, 'size') else "unknown",
+                "content_type": file.content_type,
+                "target_language": targetLanguage,
+                "requested_provider": llmProvider,
+                "user_id": user_id
+            })
         
         # Check if user is allowed to select model
         is_allowed = await translation_service.is_model_selection_allowed(user_id)
@@ -379,6 +397,7 @@ async def check_api_key_status():
             "DEFAULT_LLM_MODEL": os.getenv("DEFAULT_LLM_MODEL"),
             "siliconflow_api_key_set": bool(os.getenv("SILICONFLOW_API_KEY")),
             "siliconflow_api_base": os.getenv("SILICONFLOW_API_BASE"),
+            "siliconflow_model_name": os.getenv("SILICONFLOW_MODEL_NAME"),
         }
         
         return {
@@ -391,45 +410,49 @@ async def check_api_key_status():
             print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error checking API key status: {str(e)}")
 
-# Debug endpoint to test Silicon Flow service directly
-@app.get("/api/debug/siliconflow-test")
-async def test_siliconflow():
-    """Test endpoint for the SiliconFlow API"""
+@app.get("/api/auth/me", response_model=UserResponse)
+async def get_me(user: dict = Depends(get_current_user)):
+    if DEBUG_MODE:
+        debug_log("User authentication request", {
+            "user_id": user.get("id"),
+            "username": user.get("username"),
+            "is_email_user": user.get("is_email_user", False)
+        })
+    return UserResponse(**user)
+
+# Debug endpoint to test any LLM provider service directly
+@app.get("/api/debug/llm-test/{provider}")
+async def test_llm_provider(provider: str, prompt: str = Query("Translate this to Spanish: Hello world")):
+    """Test endpoint for any LLM API"""
+    if not DEBUG_MODE:
+        raise HTTPException(status_code=403, detail="Debug mode is not enabled")
+    
     try:
-        print("[DEBUG] Testing SiliconFlow API")
+        print(f"[DEBUG] Testing {provider} API with prompt: {prompt}")
         
         # Get environment variables
-        api_key = os.getenv("SILICONFLOW_API_KEY", "")
-        api_base = os.getenv("SILICONFLOW_API_BASE", "")
-        model_name = os.getenv("SILICONFLOW_MODEL_NAME", "")
+        api_keys = APIKeySettings.from_env()
         
-        debug_info = {
-            "api_key_set": bool(api_key),
-            "api_base": api_base,
-            "model_name": model_name,
-            "debug_mode": DEBUG_MODE,
-            "command_line_args": sys.argv
-        }
+        if not api_keys.has_key_for_provider(provider):
+            return {"status": "error", "message": f"{provider.upper()}_API_KEY not set"}
         
-        print(f"[DEBUG] SiliconFlow config: {debug_info}")
+        response = None
         
-        if not api_key:
-            return {"status": "error", "message": "SILICONFLOW_API_KEY not set", "debug_info": debug_info}
-        
-        # Create Silicon Flow service
-        service = SiliconFlowService()
-        
-        # Test with a simple prompt
-        response = await service.generate_text("Translate this text to Spanish: 'Hello, how are you?'", 
-                                           "You are a helpful translation assistant.")
+        # Select service based on provider
+        if provider == "siliconflow":
+            service = SiliconFlowService()
+            response = await service.generate_text(prompt, "You are a helpful translation assistant.")
+        # Add other providers as needed
+        else:
+            return {"status": "error", "message": f"Provider {provider} not supported for direct testing"}
         
         return {
             "status": "success", 
+            "provider": provider,
             "response": response,
-            "debug_info": debug_info
         }
     except Exception as e:
-        print(f"[ERROR] SiliconFlow test error: {str(e)}")
+        print(f"[ERROR] {provider} test error: {str(e)}")
         if DEBUG_MODE:
             print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         return {"status": "error", "message": str(e), "traceback": traceback.format_exc() if DEBUG_MODE else None}
@@ -442,12 +465,16 @@ async def startup_event():
     print(f"[SERVER] Command line arguments: {sys.argv}")
     
     if DEBUG_MODE:
-        print(f"[SERVER_DEBUG] Environment configuration:")
-        print(f"[SERVER_DEBUG] DEFAULT_LLM_MODEL: {os.getenv('DEFAULT_LLM_MODEL', 'not set')}")
-        print(f"[SERVER_DEBUG] SILICONFLOW_API_KEY: {'configured' if os.getenv('SILICONFLOW_API_KEY') else 'not configured'}")
-        print(f"[SERVER_DEBUG] SILICONFLOW_API_BASE: {os.getenv('SILICONFLOW_API_BASE', 'not set')}")
-        print(f"[SERVER_DEBUG] SILICONFLOW_MODEL_NAME: {os.getenv('SILICONFLOW_MODEL_NAME', 'not set')}")
-        print(f"[SERVER_DEBUG] RAG_ENABLED: {os.getenv('RAG_ENABLED', 'not set')}")
+        debug_log("Environment configuration", {
+            "DEFAULT_LLM_MODEL": os.getenv('DEFAULT_LLM_MODEL', 'not set'),
+            "SILICONFLOW_API_KEY": bool(os.getenv('SILICONFLOW_API_KEY')),
+            "SILICONFLOW_API_BASE": os.getenv('SILICONFLOW_API_BASE', 'not set'),
+            "SILICONFLOW_MODEL_NAME": os.getenv('SILICONFLOW_MODEL_NAME', 'not set'),
+            "RAG_ENABLED": os.getenv('RAG_ENABLED', 'not set'),
+            "DEBUG": os.getenv('DEBUG', 'not set'),
+            "PORT": os.getenv('PORT', 'not set'),
+            "HOST": os.getenv('HOST', 'not set'),
+        })
     
     # Test loading API keys
     api_keys = APIKeySettings.from_env()
@@ -464,14 +491,13 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    debug = DEBUG_MODE
     
-    print(f"[STARTUP] Starting server with debug mode: {debug}")
+    print(f"[STARTUP] Starting server with debug mode: {DEBUG_MODE}")
     print(f"[STARTUP] Command line args: {sys.argv}")
     
     uvicorn.run(
         "app:app",
         host=os.getenv("HOST", "0.0.0.0"),
         port=port,
-        reload=debug
+        reload=DEBUG_MODE
     )
