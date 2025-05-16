@@ -1,429 +1,312 @@
-
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Upload, Languages, HistoryIcon, ArrowDown, FileType, Check, AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { FileUpload, Loader2, RefreshCw, Download, Trash2, AlertCircle, CheckCircle2, Clock, FileType } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
+import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus } from "@/store/slices/translationSlice";
+import { translationApi } from "@/services/translationApi";
+
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { useAppDispatch, useAppSelector } from "@/hooks/use-redux";
-import { uploadDocument, fetchTranslations, setFile, setTargetLanguage, clearUpload, deleteTranslation } from "@/store/slices/translationSlice";
-import { translationApi } from "@/services/translationApi";
-import { format } from "date-fns";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+
+import UploadForm from "@/components/translation/UploadForm";
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("upload");
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
-  const { translations, currentUpload, status } = useAppSelector((state) => state.translation);
-  const [dragActive, setDragActive] = useState(false);
-  const { t, language } = useLanguage();
-
-  const LANGUAGES = [
-    { code: "es", name: t('spanish') },
-    { code: "fr", name: t('french') },
-    { code: "de", name: t('german') },
-    { code: "it", name: t('italian') },
-    { code: "zh", name: t('chinese') },
-    { code: "ja", name: t('japanese') },
-    { code: "ko", name: t('korean') },
-    { code: "ru", name: t('russian') },
-    { code: "pt", name: t('portuguese') },
-    { code: "ar", name: t('arabic') },
-  ];
+  const { translations, status } = useAppSelector((state) => state.translation);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState("all");
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState<any>(null);
 
   useEffect(() => {
+    if (!user?.isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+
+    // Fetch translations when component mounts
     dispatch(fetchTranslations());
-  }, [dispatch]);
 
-  // Add debug logs to monitor state changes
-  useEffect(() => {
-    console.log("Current upload status:", currentUpload.status);
-    console.log("Current file:", currentUpload.file?.name || "No file");
-    console.log("Current target language:", currentUpload.targetLanguage);
-  }, [currentUpload]);
-
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileInput = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
-    }
-  };
-
-  const handleFile = (file) => {
-    const validTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain'
-    ];
-
-    if (!validTypes.includes(file.type)) {
-      toast(t('invalidFileType'), {
-        description: t('pleaseUpload'),
-      });
-      return;
-    }
-
-    dispatch(setFile(file));
-  };
-
-  const handleUpload = async (e) => {
-    e.preventDefault(); // Prevent form submission default behavior
-    console.log("Starting upload process");
+    // Check for available LLM providers
+    const checkProviders = async () => {
+      try {
+        const providers = await translationApi.getAvailableLlmProviders();
+        setAvailableProviders(providers);
+        
+        // Also get API key status
+        const keyStatus = await translationApi.checkApiKeyStatus();
+        setApiKeyStatus(keyStatus);
+      } catch (error) {
+        console.error("Error fetching providers:", error);
+      }
+    };
     
-    if (!currentUpload.file) {
-      toast(t('noFileSelected'), {
-        description: t('selectDocument'),
-      });
-      return;
-    }
+    checkProviders();
+  }, [dispatch, navigate, user]);
 
-    if (!currentUpload.targetLanguage) {
-      toast(t('targetLanguageRequired'), {
-        description: t('pleaseSelectTarget'),
-      });
-      return;
-    }
+  // Set up polling for in-progress translations
+  useEffect(() => {
+    const inProgressTranslations = translations.filter(
+      t => t.status === TranslationStatus.PENDING || t.status === TranslationStatus.PROCESSING
+    );
+    
+    if (inProgressTranslations.length === 0) return;
+    
+    const intervalId = setInterval(async () => {
+      for (const translation of inProgressTranslations) {
+        try {
+          const response = await translationApi.checkTranslationStatus(translation.id);
+          
+          if (response.status !== translation.status) {
+            dispatch(updateTranslationStatus({
+              id: translation.id,
+              status: response.status,
+              errorMessage: response.errorMessage
+            }));
+            
+            // Show notification for completed or failed translations
+            if (response.status === TranslationStatus.COMPLETED) {
+              toast({
+                title: "Translation Completed",
+                description: `Your document "${translation.originalFileName}" has been translated.`,
+              });
+            } else if (response.status === TranslationStatus.FAILED) {
+              toast({
+                title: "Translation Failed",
+                description: response.errorMessage || "An error occurred during translation.",
+                variant: "destructive"
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Error checking status for translation ${translation.id}:`, error);
+        }
+      }
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [translations, dispatch, toast]);
 
-    try {
-      console.log("Dispatching uploadDocument action");
-      await dispatch(uploadDocument({
-        file: currentUpload.file,
-        targetLanguage: currentUpload.targetLanguage,
-      })).unwrap();
-      
-      toast(t('documentUploaded'), {
-        description: t('uploadedDescription'),
-      });
-      
-      // Clear the upload form
-      dispatch(clearUpload());
-      
-      // Refresh translations list
-      await dispatch(fetchTranslations());
-      
-      // Switch to history tab
-      setActiveTab("history");
-      
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast(t('uploadFailed'), {
-        description: error?.message || t('tryAgain'),
-      });
+  const handleRefresh = () => {
+    setIsLoading(true);
+    dispatch(fetchTranslations())
+      .finally(() => setIsLoading(false));
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this translation?")) {
+      dispatch(deleteTranslation(id));
     }
   };
 
-  const handleDownload = (translationId) => {
-    window.location.href = translationApi.getDownloadUrl(translationId);
+  const handleDownload = (id: string, filename: string) => {
+    const downloadUrl = translationApi.getDownloadUrl(id);
+    
+    // Create a temporary link element
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleDeleteTranslation = async (translationId) => {
-    try {
-      await dispatch(deleteTranslation(translationId)).unwrap();
-      toast(t('translationDeleted'));
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error(error?.message || t('deleteError'));
+  const getStatusBadge = (status: TranslationStatus) => {
+    switch (status) {
+      case TranslationStatus.PENDING:
+        return <Badge variant="outline" className="flex items-center gap-1"><Clock className="h-3 w-3" /> Pending</Badge>;
+      case TranslationStatus.PROCESSING:
+        return <Badge variant="secondary" className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Processing</Badge>;
+      case TranslationStatus.COMPLETED:
+        return <Badge variant="success" className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
+      case TranslationStatus.FAILED:
+        return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Failed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const filteredTranslations = translations.filter(translation => {
+    if (selectedTab === "all") return true;
+    if (selectedTab === "completed") return translation.status === TranslationStatus.COMPLETED;
+    if (selectedTab === "processing") return translation.status === TranslationStatus.PROCESSING || translation.status === TranslationStatus.PENDING;
+    if (selectedTab === "failed") return translation.status === TranslationStatus.FAILED;
+    return true;
+  });
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold mb-2">{t('dashboard')}</h1>
-        <p className="text-muted-foreground">
-          {t('welcomeBack')}, {user?.username}. {t('manageDocuments')}
-        </p>
-      </motion.div>
+    <div className="container mx-auto py-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage your translation projects and documents
+          </p>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {/* Add TMX Manager Button */}
+          <Link to="/tmx-manager">
+            <Button variant="outline" className="h-9">
+              <FileUpload className="mr-2 h-4 w-4" />
+              TMX Manager
+            </Button>
+          </Link>
+          
+          <Button variant="outline" className="h-9" onClick={handleRefresh} disabled={isLoading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-9">
+                <FileUpload className="mr-2 h-4 w-4" />
+                Upload Document
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Upload Document for Translation</DialogTitle>
+                <DialogDescription>
+                  Upload a document to translate it to your desired language.
+                </DialogDescription>
+              </DialogHeader>
+              <UploadForm 
+                onSuccess={() => setIsUploadDialogOpen(false)}
+                availableProviders={availableProviders}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-2 w-full max-w-md">
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <Upload size={16} />
-            <span>{t('uploadDocument')}</span>
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <HistoryIcon size={16} />
-            <span>{t('translationHistory')}</span>
-          </TabsTrigger>
-        </TabsList>
+      {/* API Key Status Alert */}
+      {apiKeyStatus && apiKeyStatus.api_key_status && 
+        apiKeyStatus.api_key_status.configured_providers_count === 0 && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No API Keys Configured</AlertTitle>
+          <AlertDescription>
+            No LLM provider API keys are configured. Please contact your administrator to set up API keys.
+          </AlertDescription>
+        </Alert>
+      )}
 
-        <TabsContent value="upload" className="space-y-6">
+      <Tabs defaultValue="all" value={selectedTab} onValueChange={setSelectedTab}>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="all">All Translations</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="processing">In Progress</TabsTrigger>
+            <TabsTrigger value="failed">Failed</TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value={selectedTab} className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>{t('translateDocument')}</CardTitle>
+              <CardTitle>Translation History</CardTitle>
               <CardDescription>
-                {t('uploadDescription')}
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleUpload}>
-              <CardContent className="space-y-6">
-                <div 
-                  className={`border-2 border-dashed rounded-lg p-8 transition-all
-                    ${dragActive ? 'border-primary bg-primary/5' : 'border-border'} 
-                    ${currentUpload.file ? 'bg-secondary/30' : ''}`}
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <div className="flex flex-col items-center justify-center text-center">
-                    {currentUpload.file ? (
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <FileType className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium mb-1">{currentUpload.file.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {(currentUpload.file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => dispatch(setFile(null))}
-                        >
-                          {t('remove')}
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                          <Upload className="h-6 w-6 text-primary" />
-                        </div>
-                        <h3 className="text-lg font-medium mb-2">{t('fileUploadHeader')}</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {t('fileUploadDesc')}
-                        </p>
-                        <Input
-                          id="file-upload"
-                          type="file"
-                          className="hidden"
-                          onChange={handleFileInput}
-                        />
-                        <Button type="button" asChild variant="outline">
-                          <label htmlFor="file-upload" className="cursor-pointer">
-                            {t('browseFiles')}
-                          </label>
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="target-language">{t('targetLanguage')}</Label>
-                  <Select 
-                    value={currentUpload.targetLanguage} 
-                    onValueChange={(value) => dispatch(setTargetLanguage(value))}
-                  >
-                    <SelectTrigger id="target-language" className="w-full">
-                      <SelectValue placeholder={t('selectLanguage')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LANGUAGES.map((language) => (
-                        <SelectItem key={language.code} value={language.code}>
-                          {language.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  type="submit"
-                  className="w-full"
-                  disabled={currentUpload.status === "uploading" || !currentUpload.file}
-                >
-                  {currentUpload.status === "uploading" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('uploading')}
-                    </>
-                  ) : (
-                    t('translateButton')
-                  )}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('translationHistory')}</CardTitle>
-              <CardDescription>
-                {t('viewStatus')}
+                View and manage your document translations
               </CardDescription>
             </CardHeader>
             <CardContent>
               {status === "loading" ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              ) : translations.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    {t('noTranslations')}
-                  </p>
-                  <Button 
-                    variant="link" 
-                    onClick={() => setActiveTab("upload")}
-                    className="mt-2"
-                  >
-                    {t('uploadFirst')}
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {translations.map((translation) => (
-                    <div
-                      key={translation.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-secondary/30"
-                    >
-                      <div className="mb-3 sm:mb-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <FileType className="h-4 w-4 text-muted-foreground" />
-                          <p className="font-medium truncate max-w-[240px]">
-                            {translation.originalFileName}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Languages className="h-3.5 w-3.5" />
-                            <span>
-                              {LANGUAGES.find(l => l.code === translation.targetLanguage)?.name || translation.targetLanguage}
+              ) : filteredTranslations.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Target Language</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTranslations.map((translation) => (
+                      <TableRow key={translation.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <FileType className="h-4 w-4 text-muted-foreground" />
+                            <span className="truncate max-w-[200px]" title={translation.originalFileName}>
+                              {translation.originalFileName}
                             </span>
                           </div>
-                          <span>•</span>
-                          <div>
-                            {format(new Date(translation.createdAt), "MMM d, yyyy")}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          {translation.status === "completed" ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : translation.status === "processing" ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
-                          ) : translation.status === "pending" ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                          ) : translation.status === "failed" ? (
-                            <AlertCircle className="h-4 w-4 text-destructive" />
-                          ) : (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </TableCell>
+                        <TableCell>
+                          {translation.targetLanguage.toUpperCase()}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(translation.status)}
+                          {translation.status === TranslationStatus.PROCESSING && (
+                            <Progress value={45} className="h-1 mt-2" />
                           )}
-                          <span className={`text-sm capitalize ${
-                            translation.status === "failed" ? "text-destructive" : 
-                            translation.status === "completed" ? "text-green-500" : ""
-                          }`}>
-                            {t(translation.status)}
-                          </span>
-                        </div>
-
-                        {translation.status === "completed" && translation.downloadUrl && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleDownload(translation.id)}
-                          >
-                            {t('download')}
-                          </Button>
-                        )}
-                        
-                        {translation.status === "failed" && translation.errorMessage && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive border-destructive hover:bg-destructive/10"
-                            onClick={() => {
-                              toast(t('translationError'), {
-                                description: translation.errorMessage || "Unknown error occurred",
-                              });
-                            }}
-                          >
-                            {t('viewError')}
-                          </Button>
-                        )}
-                        
-                        {/* Add delete button with confirmation dialog */}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
+                        </TableCell>
+                        <TableCell>
+                          {new Date(translation.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {translation.status === TranslationStatus.COMPLETED && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDownload(translation.id, translation.originalFileName)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="outline" 
                               size="sm"
-                              variant="outline"
-                              className="text-muted-foreground border-muted hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => handleDelete(translation.id)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t('deleteTranslation')}</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {t('deleteConfirmation')}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteTranslation(translation.id)}>
-                                {t('delete')}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <FileType className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
+                  <h3 className="mt-4 text-lg font-medium">No translations found</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {selectedTab === "all" 
+                      ? "Upload a document to get started with translation" 
+                      : `No ${selectedTab} translations found`}
+                  </p>
+                  {selectedTab === "all" && (
+                    <Button 
+                      onClick={() => setIsUploadDialogOpen(true)} 
+                      className="mt-4"
+                    >
+                      <FileUpload className="mr-2 h-4 w-4" />
+                      Upload Document
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

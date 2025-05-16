@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -14,6 +13,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import TmxManager from "./pages/TmxManager";
 
 const queryClient = new QueryClient();
 
@@ -43,16 +43,17 @@ const AppContent = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Index />} />
-        <Route path="/login" element={<Login />} />
+        <Route index element={<Index />} />
+        <Route path="login" element={<Login />} />
         <Route 
-          path="/dashboard" 
+          path="dashboard" 
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           } 
         />
+        <Route path="tmx-manager" element={<TmxManager />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

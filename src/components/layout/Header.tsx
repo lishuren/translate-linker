@@ -1,58 +1,68 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
+import { ModeToggle } from "@/components/ui/mode-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
-import { Link } from 'react-router-dom';
-import { useAppSelector, useAppDispatch } from '@/hooks/use-redux';
-import { logout } from '@/store/slices/authSlice';
-import { Button } from '@/components/ui/button';
-import { ThemeToggle } from './ThemeToggle';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { useLanguage } from '@/contexts/LanguageContext';
+const Header = () => {
+  const { isLoggedIn, user, logout } = useAuth();
+  const { pathname } = useLocation();
+  const [mounted, setMounted] = useState(false);
 
-export default function Header() {
-  const { user } = useAppSelector((state) => state.auth);
-  const dispatch = useAppDispatch();
-  const { t } = useLanguage();
-
-  const handleLogout = () => {
-    dispatch(logout());
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
-    <header className="border-b bg-background sticky top-0 z-50">
-      <div className="flex h-16 items-center px-4 container">
-        <div className="flex items-center gap-2 font-semibold text-lg">
-          <Link to="/" className="flex items-center gap-2">
+    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center">
+        <div className="mr-4 flex">
+          <Link to="/" className="font-bold">
             LingoAIO
           </Link>
         </div>
-        <div className="ml-auto flex items-center gap-4">
-          <nav className="flex items-center gap-4">
-            <Link to="/" className="text-sm font-medium transition-colors hover:text-primary">
-              {t('home')}
-            </Link>
-            {user?.isLoggedIn && (
-              <Link to="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
-                {t('dashboard')}
-              </Link>
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <nav className="flex items-center space-x-2">
+            {!isLoggedIn && (
+              <>
+                <Link to="/" className={`${pathname === '/' ? 'text-foreground' : 'text-muted-foreground'} px-4 py-2 hover:text-foreground transition-colors`}>
+                  Home
+                </Link>
+                <Link to="/login" className={`${pathname === '/login' ? 'text-foreground' : 'text-muted-foreground'} px-4 py-2 hover:text-foreground transition-colors`}>
+                  Login
+                </Link>
+              </>
             )}
+            
+            {isLoggedIn && (
+              <>
+                <Link to="/dashboard" className={`${pathname === '/dashboard' ? 'text-foreground' : 'text-muted-foreground'} px-4 py-2 hover:text-foreground transition-colors`}>
+                  Dashboard
+                </Link>
+                <Link to="/tmx-manager" className={`${pathname === '/tmx-manager' ? 'text-foreground' : 'text-muted-foreground'} px-4 py-2 hover:text-foreground transition-colors`}>
+                  TMX Manager
+                </Link>
+              </>
+            )}
+            
+            {mounted && <ModeToggle />}
+            {isLoggedIn ? (
+              <div className="flex items-center space-x-2">
+                <Avatar>
+                  <AvatarImage src="https://github.com/shadcn.png" alt="Avatar" />
+                  <AvatarFallback>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <Button variant="outline" size="sm" onClick={logout}>
+                  Logout
+                </Button>
+              </div>
+            ) : null}
           </nav>
-
-          <LanguageSwitcher />
-          <ThemeToggle />
-
-          {user?.isLoggedIn ? (
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">{user.username}</span>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                {t('logout')}
-              </Button>
-            </div>
-          ) : (
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/login">{t('login')}</Link>
-            </Button>
-          )}
         </div>
       </div>
     </header>
   );
-}
+};
+
+export default Header;

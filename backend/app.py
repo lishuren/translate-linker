@@ -30,8 +30,8 @@ from models.translation import (
 from models.api_key import APIKeySettings
 
 # Import routers
-from app_tmx import tmx_router
-from app_auth import auth_router, get_user_id_from_token
+from app_auth import auth_router
+from app_tmx import tmx_router  # Import TMX router
 
 # Load environment variables
 load_dotenv()
@@ -61,10 +61,12 @@ def debug_log(message: str, data=None, verbose=False):
 
 print(f"[SERVER] Starting with DEBUG_MODE: {DEBUG_MODE}")
 
+# Create FastAPI app
 app = FastAPI(
-    title="LingoAIO API",
-    description="API for translating documents using LangChain with multiple LLM providers",
-    version="1.0.0"
+    title="Translation API",
+    description="API for language translation services using LLMs",
+    version="1.0.0",
+    debug=DEBUG_MODE
 )
 
 # Configure CORS to allow requests from the frontend
@@ -83,8 +85,8 @@ user_settings_service = UserSettingsService()
 global_config = GlobalConfigService()
 
 # Include routers
-app.include_router(tmx_router)
 app.include_router(auth_router)
+app.include_router(tmx_router)  # Include TMX router
 
 # Create necessary directories
 os.makedirs("uploads", exist_ok=True)
