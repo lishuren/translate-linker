@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { FileUpload, Loader2, RefreshCw, Download, Trash2, AlertCircle, CheckCircle2, Clock, FileType } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Download, Trash2, AlertCircle, CheckCircle2, Clock, FileType } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
 import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus } from "@/store/slices/translationSlice";
@@ -134,7 +134,7 @@ const Dashboard = () => {
       case TranslationStatus.PROCESSING:
         return <Badge variant="secondary" className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Processing</Badge>;
       case TranslationStatus.COMPLETED:
-        return <Badge variant="success" className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
+        return <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
       case TranslationStatus.FAILED:
         return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Failed</Badge>;
       default:

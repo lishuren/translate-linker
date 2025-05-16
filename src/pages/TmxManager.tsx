@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { FileUpload, UploadCloud } from "lucide-react";
+import { Upload, UploadCloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import config from "@/config/environment";
@@ -165,7 +164,7 @@ const TmxManager = () => {
               {file && (
                 <div className="rounded-md bg-secondary p-3">
                   <div className="flex items-center space-x-3">
-                    <FileUpload className="h-5 w-5 text-primary" />
+                    <Upload className="h-5 w-5 text-primary" />
                     <div className="text-sm">
                       <p className="font-medium">{file.name}</p>
                       <p className="text-muted-foreground">
@@ -231,7 +230,7 @@ const TmxManager = () => {
             </Table>
           ) : (
             <div className="text-center py-10">
-              <FileUpload className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+              <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
               <p className="text-muted-foreground">No TMX files uploaded yet</p>
               <p className="text-sm text-muted-foreground mt-1">
                 Upload TMX files to enhance translation quality with your existing translation memory
