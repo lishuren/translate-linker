@@ -412,15 +412,7 @@ async def check_api_key_status():
             print(f"[ERROR_DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error checking API key status: {str(e)}")
 
-@app.get("/api/auth/me", response_model=UserResponse)
-async def get_me(user: dict = Depends(get_current_user)):
-    if DEBUG_MODE:
-        debug_log("User authentication request", {
-            "user_id": user.get("id"),
-            "username": user.get("username"),
-            "is_email_user": user.get("is_email_user", False)
-        })
-    return UserResponse(**user)
+
 
 # Debug endpoint to test any LLM provider service directly
 @app.get("/api/debug/llm-test/{provider}")
