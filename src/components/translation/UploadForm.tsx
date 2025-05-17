@@ -4,7 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Check, X } from "lucide-react";
 import { translationApi } from "@/services/translationApi";
 import { useAppDispatch } from "@/hooks/use-redux";
-import { addTranslation } from "@/store/slices/translationSlice";
+import { useDispatch } from 'react-redux';
+import { addTranslation } from '@/store/slices/translationSlice';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ const UploadForm = ({ onSuccess, availableProviders = [] }: UploadFormProps) => 
         setProgress(prev => Math.min(prev + 5, 90));
       }, 300);
       
-      const response = await translationApi.uploadFileForTranslation(file, targetLanguage, provider);
+      const response = await translationApi.uploadDocument(file, targetLanguage, provider);
       
       clearInterval(progressInterval);
       setProgress(100);

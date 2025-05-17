@@ -167,6 +167,9 @@ const translationSlice = createSlice({
           translation.errorMessage = action.payload.errorMessage;
         }
       }
+    },
+    addTranslation(state, action: PayloadAction<Translation>) {
+      state.translations.push(action.payload);
     }
   },
   extraReducers: (builder) => {
@@ -227,6 +230,6 @@ const translationSlice = createSlice({
   }
 });
 
-export const { clearError, setFile, setTargetLanguage, clearUpload, updateTranslationStatus } = translationSlice.actions;
+export const { clearError, setFile, setTargetLanguage, clearUpload, updateTranslationStatus, addTranslation } = translationSlice.actions;
 
 export default translationSlice.reducer;

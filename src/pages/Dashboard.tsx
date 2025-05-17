@@ -164,7 +164,7 @@ const Dashboard = () => {
           {/* Add TMX Manager Button */}
           <Link to="/tmx-manager">
             <Button variant="outline" className="h-9">
-              <FileUpload className="mr-2 h-4 w-4" />
+              <UploadForm className="mr-2 h-4 w-4" />
               TMX Manager
             </Button>
           </Link>
@@ -176,7 +176,7 @@ const Dashboard = () => {
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
             <DialogTrigger asChild>
               <Button className="h-9">
-                <FileUpload className="mr-2 h-4 w-4" />
+                <UploadForm className="mr-2 h-4 w-4" />
                 Upload Document
               </Button>
             </DialogTrigger>
@@ -303,7 +303,7 @@ const Dashboard = () => {
                       onClick={() => setIsUploadDialogOpen(true)} 
                       className="mt-4"
                     >
-                      <FileUpload className="mr-2 h-4 w-4" />
+                      <UploadForm className="mr-2 h-4 w-4" />
                       Upload Document
                     </Button>
                   )}
