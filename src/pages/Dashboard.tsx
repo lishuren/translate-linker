@@ -164,7 +164,6 @@ const Dashboard = () => {
           {/* Add TMX Manager Button */}
           <Link to="/tmx-manager">
             <Button variant="outline" className="h-9">
-              <UploadForm className="mr-2 h-4 w-4" />
               TMX Manager
             </Button>
           </Link>
@@ -173,26 +172,26 @@ const Dashboard = () => {
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-9">
-                <UploadForm className="mr-2 h-4 w-4" />
-                Upload Document
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Upload Document for Translation</DialogTitle>
-                <DialogDescription>
-                  Upload a document to translate it to your desired language.
-                </DialogDescription>
-              </DialogHeader>
-              <UploadForm 
-                onSuccess={() => setIsUploadDialogOpen(false)}
-                availableProviders={availableProviders}
-              />
-            </DialogContent>
-          </Dialog>
+           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="h-9">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Document
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Upload Document for Translation</DialogTitle>
+                  <DialogDescription>
+                    Upload a document to translate it to your desired language.
+                  </DialogDescription>
+                </DialogHeader>
+                <UploadForm 
+                  onSuccess={() => setIsUploadDialogOpen(false)}
+                  availableProviders={availableProviders}
+                />
+              </DialogContent>
+            </Dialog>
         </div>
       </div>
 
@@ -303,7 +302,7 @@ const Dashboard = () => {
                       onClick={() => setIsUploadDialogOpen(true)} 
                       className="mt-4"
                     >
-                      <UploadForm className="mr-2 h-4 w-4" />
+                     
                       Upload Document
                     </Button>
                   )}
