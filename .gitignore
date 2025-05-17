@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/backend/.vs/backend/FileContentIndex
+/.vs/translate-linker/FileContentIndex
+/.vs/translate-linker/v17
+/backend/.vs/backend/v17
+/backend/metadata

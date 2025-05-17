@@ -30,7 +30,7 @@ from models.translation import (
 from models.api_key import APIKeySettings
 
 # Import routers
-from app_auth import auth_router
+from app_auth import auth_router , get_user_id_from_token
 from app_tmx import tmx_router  # Import TMX router
 
 # Load environment variables

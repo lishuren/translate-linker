@@ -1,6 +1,6 @@
 {
   "llm_settings": {
-    "default_provider": "openai",
+    "default_provider": "siliconflow",
     "temperature": 0.1,
     "providers": {
       "openai": {
@@ -25,7 +25,7 @@
         "model": "deepseek-chat"
       },
       "siliconflow": {
-        "model": "siliconflow-1"
+        "model": "Pro/deepseek-ai/DeepSeek-V3"
       }
     }
   },
@@ -37,7 +37,7 @@
     "rag_enabled": true
   },
   "database_settings": {
-    "use_database": false,
+    "use_database": true,
     "db_url": "sqlite:///translations.db"
   }
 }
