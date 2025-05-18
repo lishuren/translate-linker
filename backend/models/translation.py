@@ -1,14 +1,15 @@
-
 from enum import Enum
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
+
 
 class TranslationStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
 
 class ProcessingDetails(BaseModel):
     engine: str = "langchain"
@@ -22,6 +23,7 @@ class ProcessingDetails(BaseModel):
     agentEnabled: bool = True
     confidenceScore: Optional[float] = None
 
+
 class Translation(BaseModel):
     id: str
     originalFileName: str
@@ -32,17 +34,20 @@ class Translation(BaseModel):
     errorMessage: Optional[str] = None
     processingDetails: Optional[ProcessingDetails] = None
 
+
 class TranslationRequest(BaseModel):
     file_path: str
     target_language: str
     original_filename: str
 
+
 class TranslationResponse(BaseModel):
     translation: Translation
 
+
 class TranslationStatusResponse(BaseModel):
     id: str
-    status: TranslationStatus
+    translation: TranslationResponse
     progress: float = 0
     downloadUrl: Optional[str] = None
     errorMessage: Optional[str] = None
