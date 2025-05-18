@@ -107,21 +107,22 @@ class ChromaService:
         target_language: str = None,
         k: int = 5,
     ) -> List[Dict[str, Any]]:
-        """Search for similar translations in the RAG store"""
+        # """Search for similar translations in the RAG store"""
         # Get the user's collection
         collection = self.create_or_get_collection(user_id)
 
         # Create filters based on languages if provided
-        filter_dict = {}
-        if source_language:
-            filter_dict["source_language"] = source_language
-        if target_language:
-            filter_dict["target_language"] = target_language
+        filter_dict = None
+        if source_language or target_language:
+            conditions = []
+            if source_language:
+                conditions.append({"source_language": source_language})
+            if target_language:
+                conditions.append({"target_language": target_language})
+            filter_dict = {"$and": conditions} if len(conditions) > 1 else conditions[0]
 
         # Perform search
-        results = collection.similarity_search(
-            query, k=k, filter=filter_dict if filter_dict else None
-        )
+        results = collection.similarity_search(query, k=k, filter=filter_dict)
 
         # Format results
         formatted_results = []
