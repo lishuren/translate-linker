@@ -278,7 +278,12 @@ async def check_translation_status(translation_id: str):
             raise HTTPException(status_code=404, detail="Translation not found")
 
         print(f"[STATUS] Translation status: {status}")
-        return status
+        response = {
+            "id": translation_id,  # Add the root-level id
+            "translation": status,
+            "progress": status["progress"],
+        }
+        return response
     except Exception as e:
         print(f"[ERROR] Status check error: {str(e)}")
         if DEBUG_MODE:

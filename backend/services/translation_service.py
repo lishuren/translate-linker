@@ -519,7 +519,11 @@ class TranslationService:
             translation = translations_db[translation_id]
             progress = progress_tracker.get(translation_id, 0)
 
-            return {"translation": translation.dict(), "progress": progress}
+            return {
+                "id": translation_id,
+                "translation": translation.dict(),
+                "progress": progress,
+            }
         return None
 
     async def get_translation_file(self, translation_id: str) -> Optional[str]:
