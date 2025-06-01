@@ -2,7 +2,7 @@
 import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
-import Header from "./Header";
+import { Header } from "./Header";
 import Footer from "./Footer";
 
 const Layout: React.FC = () => {

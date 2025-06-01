@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Globe } from "lucide-react";
 
 export function LanguageSwitcher() {
   const { language, setLanguage, t } = useLanguage();
@@ -14,9 +15,12 @@ export function LanguageSwitcher() {
       variant="ghost" 
       size="sm" 
       onClick={toggleLanguage}
-      className="px-2"
+      className="flex items-center gap-2 px-3"
     >
-      {t('languageToggle')}
+      <Globe className="h-4 w-4" />
+      <span className="text-sm font-medium">
+        {language === 'en' ? 'EN' : '中文'}
+      </span>
     </Button>
   );
 }

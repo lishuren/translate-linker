@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Define the language types
 type Language = 'en' | 'zh';
@@ -239,11 +239,25 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 // Create the provider component
 export const LanguageProvider: React.FC<{children: ReactNode}> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>(() => {
+    // Load language from localStorage or default to 'en'
+    const savedLanguage = localStorage.getItem('ui-language') as Language;
+    return savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh') ? savedLanguage : 'en';
+  });
+
+  const setLanguage = (newLanguage: Language) => {
+    setLanguageState(newLanguage);
+    localStorage.setItem('ui-language', newLanguage);
+  };
 
   const t = (key: keyof typeof translations.en): string => {
     return translations[language][key] || key;
   };
+
+  useEffect(() => {
+    // Save language preference whenever it changes
+    localStorage.setItem('ui-language', language);
+  }, [language]);
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
