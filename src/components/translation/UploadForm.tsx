@@ -1,32 +1,103 @@
 
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Check, X } from "lucide-react";
+import { Upload, Check } from "lucide-react";
 import { translationApi } from "@/services/translationApi";
 import { useAppDispatch } from "@/hooks/use-redux";
-import { useDispatch } from 'react-redux';
 import { addTranslation } from '@/store/slices/translationSlice';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { DialogFooter } from "@/components/ui/dialog";
 
 interface UploadFormProps {
   onSuccess?: () => void;
-  availableProviders: string[];
 }
 
-const UploadForm = ({ onSuccess, availableProviders = [] }: UploadFormProps) => {
+const LANGUAGES = [
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "it", name: "Italian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "zh", name: "Chinese (Simplified)" },
+  { code: "zh-tw", name: "Chinese (Traditional)" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "ru", name: "Russian" },
+  { code: "ar", name: "Arabic" },
+  { code: "hi", name: "Hindi" },
+  { code: "th", name: "Thai" },
+  { code: "vi", name: "Vietnamese" },
+  { code: "tr", name: "Turkish" },
+  { code: "pl", name: "Polish" },
+  { code: "nl", name: "Dutch" },
+  { code: "sv", name: "Swedish" },
+  { code: "da", name: "Danish" },
+  { code: "no", name: "Norwegian" },
+  { code: "fi", name: "Finnish" },
+  { code: "hu", name: "Hungarian" },
+  { code: "cs", name: "Czech" },
+  { code: "sk", name: "Slovak" },
+  { code: "sl", name: "Slovenian" },
+  { code: "hr", name: "Croatian" },
+  { code: "sr", name: "Serbian" },
+  { code: "bg", name: "Bulgarian" },
+  { code: "ro", name: "Romanian" },
+  { code: "el", name: "Greek" },
+  { code: "he", name: "Hebrew" },
+  { code: "fa", name: "Persian" },
+  { code: "ur", name: "Urdu" },
+  { code: "bn", name: "Bengali" },
+  { code: "ta", name: "Tamil" },
+  { code: "te", name: "Telugu" },
+  { code: "ml", name: "Malayalam" },
+  { code: "kn", name: "Kannada" },
+  { code: "gu", name: "Gujarati" },
+  { code: "pa", name: "Punjabi" },
+  { code: "mr", name: "Marathi" },
+  { code: "ne", name: "Nepali" },
+  { code: "si", name: "Sinhala" },
+  { code: "my", name: "Myanmar" },
+  { code: "km", name: "Khmer" },
+  { code: "lo", name: "Lao" },
+  { code: "ka", name: "Georgian" },
+  { code: "am", name: "Amharic" },
+  { code: "sw", name: "Swahili" },
+  { code: "zu", name: "Zulu" },
+  { code: "af", name: "Afrikaans" },
+  { code: "is", name: "Icelandic" },
+  { code: "mt", name: "Maltese" },
+  { code: "cy", name: "Welsh" },
+  { code: "ga", name: "Irish" },
+  { code: "eu", name: "Basque" },
+  { code: "ca", name: "Catalan" },
+  { code: "gl", name: "Galician" },
+  { code: "lt", name: "Lithuanian" },
+  { code: "lv", name: "Latvian" },
+  { code: "et", name: "Estonian" },
+  { code: "mk", name: "Macedonian" },
+  { code: "sq", name: "Albanian" },
+  { code: "be", name: "Belarusian" },
+  { code: "uk", name: "Ukrainian" },
+  { code: "az", name: "Azerbaijani" },
+  { code: "kk", name: "Kazakh" },
+  { code: "ky", name: "Kyrgyz" },
+  { code: "tg", name: "Tajik" },
+  { code: "uz", name: "Uzbek" },
+  { code: "mn", name: "Mongolian" },
+  { code: "bo", name: "Tibetan" },
+  { code: "hy", name: "Armenian" },
+];
+
+const UploadForm = ({ onSuccess }: UploadFormProps) => {
   const { toast } = useToast();
   const dispatch = useAppDispatch();
   const [file, setFile] = useState<File | null>(null);
   const [targetLanguage, setTargetLanguage] = useState("es");
-  const [provider, setProvider] = useState(availableProviders[0] || "openai");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -57,7 +128,8 @@ const UploadForm = ({ onSuccess, availableProviders = [] }: UploadFormProps) => 
         setProgress(prev => Math.min(prev + 5, 90));
       }, 300);
       
-      const response = await translationApi.uploadDocument(file, targetLanguage, provider);
+      // Upload without provider - let backend use user settings
+      const response = await translationApi.uploadDocument(file, targetLanguage);
       
       clearInterval(progressInterval);
       setProgress(100);
@@ -123,35 +195,15 @@ const UploadForm = ({ onSuccess, availableProviders = [] }: UploadFormProps) => 
           <SelectTrigger id="language">
             <SelectValue placeholder="Select language" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="es">Spanish</SelectItem>
-            <SelectItem value="fr">French</SelectItem>
-            <SelectItem value="de">German</SelectItem>
-            <SelectItem value="zh">Chinese</SelectItem>
-            <SelectItem value="ja">Japanese</SelectItem>
-            <SelectItem value="ru">Russian</SelectItem>
+          <SelectContent className="max-h-60 overflow-y-auto">
+            {LANGUAGES.map((language) => (
+              <SelectItem key={language.code} value={language.code}>
+                {language.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
-      
-      {availableProviders.length > 0 && (
-        <div className="space-y-2">
-          <Label>Translation Provider</Label>
-          <RadioGroup 
-            value={provider} 
-            onValueChange={setProvider}
-            className="flex flex-col space-y-1"
-            disabled={uploading}
-          >
-            {availableProviders.map((p) => (
-              <div key={p} className="flex items-center space-x-2">
-                <RadioGroupItem value={p} id={`provider-${p}`} />
-                <Label htmlFor={`provider-${p}`} className="capitalize">{p}</Label>
-              </div>
-            ))}
-          </RadioGroup>
-        </div>
-      )}
       
       {uploading && (
         <div className="space-y-2">
