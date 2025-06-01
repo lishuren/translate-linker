@@ -188,7 +188,6 @@ const Dashboard = () => {
                 </DialogHeader>
                 <UploadForm 
                   onSuccess={() => setIsUploadDialogOpen(false)}
-                  availableProviders={availableProviders}
                 />
               </DialogContent>
             </Dialog>
