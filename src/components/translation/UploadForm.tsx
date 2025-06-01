@@ -1,229 +1,177 @@
 
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { Upload, Check } from "lucide-react";
-import { translationApi } from "@/services/translationApi";
-import { useAppDispatch } from "@/hooks/use-redux";
-import { addTranslation } from '@/store/slices/translationSlice';
-
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Upload, File, X } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface UploadFormProps {
-  onSuccess?: () => void;
+  onUpload: (file: File, targetLanguage: string, llmProvider?: string) => void;
+  isUploading?: boolean;
 }
 
-const LANGUAGES = [
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "pt", name: "Portuguese" },
-  { code: "zh", name: "Chinese (Simplified)" },
-  { code: "zh-tw", name: "Chinese (Traditional)" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "ru", name: "Russian" },
-  { code: "ar", name: "Arabic" },
-  { code: "hi", name: "Hindi" },
-  { code: "th", name: "Thai" },
-  { code: "vi", name: "Vietnamese" },
-  { code: "tr", name: "Turkish" },
-  { code: "pl", name: "Polish" },
-  { code: "nl", name: "Dutch" },
-  { code: "sv", name: "Swedish" },
-  { code: "da", name: "Danish" },
-  { code: "no", name: "Norwegian" },
-  { code: "fi", name: "Finnish" },
-  { code: "hu", name: "Hungarian" },
-  { code: "cs", name: "Czech" },
-  { code: "sk", name: "Slovak" },
-  { code: "sl", name: "Slovenian" },
-  { code: "hr", name: "Croatian" },
-  { code: "sr", name: "Serbian" },
-  { code: "bg", name: "Bulgarian" },
-  { code: "ro", name: "Romanian" },
-  { code: "el", name: "Greek" },
-  { code: "he", name: "Hebrew" },
-  { code: "fa", name: "Persian" },
-  { code: "ur", name: "Urdu" },
-  { code: "bn", name: "Bengali" },
-  { code: "ta", name: "Tamil" },
-  { code: "te", name: "Telugu" },
-  { code: "ml", name: "Malayalam" },
-  { code: "kn", name: "Kannada" },
-  { code: "gu", name: "Gujarati" },
-  { code: "pa", name: "Punjabi" },
-  { code: "mr", name: "Marathi" },
-  { code: "ne", name: "Nepali" },
-  { code: "si", name: "Sinhala" },
-  { code: "my", name: "Myanmar" },
-  { code: "km", name: "Khmer" },
-  { code: "lo", name: "Lao" },
-  { code: "ka", name: "Georgian" },
-  { code: "am", name: "Amharic" },
-  { code: "sw", name: "Swahili" },
-  { code: "zu", name: "Zulu" },
-  { code: "af", name: "Afrikaans" },
-  { code: "is", name: "Icelandic" },
-  { code: "mt", name: "Maltese" },
-  { code: "cy", name: "Welsh" },
-  { code: "ga", name: "Irish" },
-  { code: "eu", name: "Basque" },
-  { code: "ca", name: "Catalan" },
-  { code: "gl", name: "Galician" },
-  { code: "lt", name: "Lithuanian" },
-  { code: "lv", name: "Latvian" },
-  { code: "et", name: "Estonian" },
-  { code: "mk", name: "Macedonian" },
-  { code: "sq", name: "Albanian" },
-  { code: "be", name: "Belarusian" },
-  { code: "uk", name: "Ukrainian" },
-  { code: "az", name: "Azerbaijani" },
-  { code: "kk", name: "Kazakh" },
-  { code: "ky", name: "Kyrgyz" },
-  { code: "tg", name: "Tajik" },
-  { code: "uz", name: "Uzbek" },
-  { code: "mn", name: "Mongolian" },
-  { code: "bo", name: "Tibetan" },
-  { code: "hy", name: "Armenian" },
-];
+export function UploadForm({ onUpload, isUploading = false }: UploadFormProps) {
+  const { t } = useLanguage();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [targetLanguage, setTargetLanguage] = useState<string>("");
+  const [dragActive, setDragActive] = useState(false);
 
-const UploadForm = ({ onSuccess }: UploadFormProps) => {
-  const { toast } = useToast();
-  const dispatch = useAppDispatch();
-  const [file, setFile] = useState<File | null>(null);
-  const [targetLanguage, setTargetLanguage] = useState("es");
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const languages = [
+    { value: "chinese", label: t('chinese') },
+    { value: "english", label: t('english') },
+    { value: "spanish", label: t('spanish') },
+    { value: "french", label: t('french') },
+    { value: "german", label: t('german') },
+    { value: "japanese", label: t('japanese') },
+    { value: "korean", label: t('korean') },
+    { value: "russian", label: t('russian') },
+    { value: "portuguese", label: t('portuguese') },
+    { value: "italian", label: t('italian') },
+    { value: "dutch", label: t('dutch') },
+    { value: "arabic", label: t('arabic') },
+    { value: "hindi", label: t('hindi') },
+    { value: "bengali", label: t('bengali') },
+    { value: "turkish", label: t('turkish') },
+    { value: "vietnamese", label: t('vietnamese') },
+    { value: "thai", label: t('thai') },
+    { value: "indonesian", label: t('indonesian') },
+    { value: "greek", label: t('greek') },
+    { value: "polish", label: t('polish') },
+  ];
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      setSelectedFile(e.target.files[0]);
     }
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!file) {
-      toast({
-        title: "No File Selected",
-        description: "Please select a file to translate",
-        variant: "destructive"
-      });
-      return;
+    if (selectedFile && targetLanguage) {
+      onUpload(selectedFile, targetLanguage);
     }
+  };
 
-    setUploading(true);
-    setProgress(0);
-    
-    try {
-      // Simulate progress during upload
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 5, 90));
-      }, 300);
-      
-      // Upload without provider - let backend use user settings
-      const response = await translationApi.uploadDocument(file, targetLanguage);
-      
-      clearInterval(progressInterval);
-      setProgress(100);
-      
-      if (response.success) {
-        toast({
-          title: "Upload Successful",
-          description: "Your document has been uploaded for translation"
-        });
-        
-        // Add to translation state
-        dispatch(addTranslation(response.translation));
-        
-        // Reset form
-        setFile(null);
-        
-        // Call success callback if provided
-        if (onSuccess) onSuccess();
-      } else {
-        toast({
-          title: "Upload Failed",
-          description: response.errorMessage || "An error occurred during upload",
-          variant: "destructive"
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Upload Failed",
-        description: error.message || "An error occurred during upload",
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
-    }
+  const removeFile = () => {
+    setSelectedFile(null);
   };
 
   return (
-    <form onSubmit={handleUpload} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="file">Select Document</Label>
-        <Input 
-          id="file" 
-          type="file" 
-          onChange={handleFileChange} 
-          accept=".txt,.pdf,.docx,.doc,.md"
-          disabled={uploading}
-        />
-        {file && (
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-green-500" />
-            <span>{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>{t('uploadDocument')}</CardTitle>
+        <CardDescription>{t('uploadDescription')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* File Upload Area */}
+          <div className="space-y-2">
+            <Label htmlFor="file-upload">{t('selectDocument')}</Label>
+            {!selectedFile ? (
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  dragActive
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-primary/50"
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById("file-upload")?.click()}
+              >
+                <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium mb-2">{t('fileUploadHeader')}</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('fileUploadDesc')}
+                </p>
+                <Button type="button" variant="outline">
+                  {t('browseFiles')}
+                </Button>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.txt,.rtf"
+                />
+              </div>
+            ) : (
+              <div className="border rounded-lg p-4 bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <File className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="font-medium">{selectedFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeFile}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="language">Target Language</Label>
-        <Select 
-          value={targetLanguage} 
-          onValueChange={setTargetLanguage}
-          disabled={uploading}
-        >
-          <SelectTrigger id="language">
-            <SelectValue placeholder="Select language" />
-          </SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
-            {LANGUAGES.map((language) => (
-              <SelectItem key={language.code} value={language.code}>
-                {language.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {uploading && (
-        <div className="space-y-2">
-          <Progress value={progress} />
-          <p className="text-xs text-center text-muted-foreground">
-            {progress < 100 ? "Uploading..." : "Processing..."}
-          </p>
-        </div>
-      )}
-      
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onSuccess} disabled={uploading}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={!file || uploading}>
-          {uploading ? "Uploading..." : "Upload for Translation"}
-        </Button>
-      </DialogFooter>
-    </form>
-  );
-};
 
-export default UploadForm;
+          {/* Target Language Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="target-language">{t('targetLanguage')}</Label>
+            <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('selectLanguage')} />
+              </SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!selectedFile || !targetLanguage || isUploading}
+          >
+            {isUploading ? t('uploading') : t('translateButton')}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}

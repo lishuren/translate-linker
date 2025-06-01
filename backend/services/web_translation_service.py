@@ -5,11 +5,19 @@ import asyncio
 import aiohttp
 from typing import Dict, List, Optional, Any
 
+# Import googletrans for fallback translation
+try:
+    from googletrans import Translator
+    GOOGLETRANS_AVAILABLE = True
+except ImportError:
+    GOOGLETRANS_AVAILABLE = False
+    Translator = None
+
 class WebTranslationService:
     """Service for integrating with web-based translation services"""
     
     def __init__(self):
-        self.default_service = os.getenv("WEB_TRANSLATION_SERVICE", "none")
+        self.default_service = os.getenv("WEB_TRANSLATION_SERVICE", "googletrans")
         
         # API keys for different services
         self.google_api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
@@ -19,6 +27,9 @@ class WebTranslationService:
         
         # Generic API key (for backward compatibility)
         self.fallback_api_key = os.getenv("TRANSLATION_API_KEY", "")
+        
+        # Initialize googletrans translator if available
+        self.googletrans_translator = Translator() if GOOGLETRANS_AVAILABLE else None
     
     async def translate_text(self, text: str, source_language: str, target_language: str, service: Optional[str] = None) -> str:
         """
@@ -28,7 +39,7 @@ class WebTranslationService:
             text: The text to translate
             source_language: Source language code (e.g., 'en', 'fr')
             target_language: Target language code (e.g., 'es', 'de')
-            service: Translation service to use (google, microsoft, deepl, or none)
+            service: Translation service to use (google, microsoft, deepl, googletrans, or none)
             
         Returns:
             The translated text
@@ -39,18 +50,47 @@ class WebTranslationService:
             print("Web translation service is disabled")
             return text
             
-        if service == "google":
+        if service == "googletrans":
+            return await self._translate_with_googletrans(text, source_language, target_language)
+        elif service == "google":
             return await self._translate_with_google(text, source_language, target_language)
         elif service == "microsoft":
             return await self._translate_with_microsoft(text, source_language, target_language)
         elif service == "deepl":
             return await self._translate_with_deepl(text, source_language, target_language)
         else:
-            print(f"Unknown translation service: {service}, using text as is")
+            print(f"Unknown translation service: {service}, falling back to googletrans")
+            return await self._translate_with_googletrans(text, source_language, target_language)
+    
+    async def _translate_with_googletrans(self, text: str, source_language: str, target_language: str) -> str:
+        """Translate text using googletrans library (free Google Translate)"""
+        if not GOOGLETRANS_AVAILABLE or not self.googletrans_translator:
+            print("Googletrans library not available")
+            return text
+            
+        try:
+            # Run the translation in a thread pool to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def translate_sync():
+                # Normalize language codes for googletrans
+                src_lang = self._normalize_language_code(source_language, "googletrans")
+                dest_lang = self._normalize_language_code(target_language, "googletrans")
+                
+                result = self.googletrans_translator.translate(text, src=src_lang, dest=dest_lang)
+                return result.text
+            
+            translated_text = await loop.run_in_executor(None, translate_sync)
+            print(f"Googletrans translation successful: {len(translated_text)} characters")
+            return translated_text
+            
+        except Exception as e:
+            print(f"Error using googletrans: {e}")
             return text
     
     async def _translate_with_google(self, text: str, source_language: str, target_language: str) -> str:
         """Translate text using Google Translate API"""
+        # ... keep existing code (Google Translate API implementation)
         api_key = self.google_api_key or self.fallback_api_key
         
         if not api_key:
@@ -85,6 +125,7 @@ class WebTranslationService:
     
     async def _translate_with_microsoft(self, text: str, source_language: str, target_language: str) -> str:
         """Translate text using Microsoft Translator API"""
+        # ... keep existing code (Microsoft Translator implementation)
         api_key = self.microsoft_api_key or self.fallback_api_key
         
         if not api_key:
@@ -127,6 +168,7 @@ class WebTranslationService:
     
     async def _translate_with_deepl(self, text: str, source_language: str, target_language: str) -> str:
         """Translate text using DeepL API"""
+        # ... keep existing code (DeepL implementation)
         api_key = self.deepl_api_key or self.fallback_api_key
         
         if not api_key:
@@ -166,17 +208,36 @@ class WebTranslationService:
     def _normalize_language_code(self, language_code: str, service: str) -> str:
         """
         Normalize language codes for different translation services
-        
-        For example:
-        - Google uses 'en', 'zh-CN'
-        - Microsoft uses 'en', 'zh-Hans'
-        - DeepL uses 'EN', 'ZH'
         """
         # Convert to lowercase for consistency
         code = language_code.lower()
         
         # Special case mappings
         mappings = {
+            "googletrans": {
+                "chinese": "zh",
+                "chinese_traditional": "zh-tw",
+                "chinese_simplified": "zh-cn",
+                "english": "en",
+                "spanish": "es",
+                "french": "fr",
+                "german": "de",
+                "japanese": "ja",
+                "korean": "ko",
+                "russian": "ru",
+                "portuguese": "pt",
+                "italian": "it",
+                "dutch": "nl",
+                "arabic": "ar",
+                "hindi": "hi",
+                "bengali": "bn",
+                "turkish": "tr",
+                "vietnamese": "vi",
+                "thai": "th",
+                "indonesian": "id",
+                "greek": "el",
+                "polish": "pl"
+            },
             "google": {
                 "chinese": "zh-CN",
                 "chinese_traditional": "zh-TW",
@@ -211,3 +272,21 @@ class WebTranslationService:
             return code.upper()
             
         return code
+    
+    def get_available_services(self) -> List[str]:
+        """Get list of available translation services"""
+        services = ["none"]
+        
+        if GOOGLETRANS_AVAILABLE:
+            services.append("googletrans")
+            
+        if self.google_api_key or self.fallback_api_key:
+            services.append("google")
+            
+        if self.microsoft_api_key or self.fallback_api_key:
+            services.append("microsoft")
+            
+        if self.deepl_api_key or self.fallback_api_key:
+            services.append("deepl")
+            
+        return services

@@ -1,3 +1,4 @@
+
 fastapi>=0.110.0
 uvicorn>=0.27.0
 python-multipart>=0.0.9
@@ -24,3 +25,5 @@ chardet>=4.0.0
 python-docx>=1.1.2
 pypdf>=5.5.0
 protobuf==3.20.3
+googletrans>=4.0.0
+aiohttp>=3.8.0
