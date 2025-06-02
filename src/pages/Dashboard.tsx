@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Upload, Loader2, RefreshCw, Download, Trash2, AlertCircle, CheckCircle2, Clock, FileType } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
-import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus } from "@/store/slices/translationSlice";
+import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus, uploadTranslation } from "@/store/slices/translationSlice";
 import { translationApi } from "@/services/translationApi";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!user?.isLoggedIn) {
@@ -127,6 +128,26 @@ const Dashboard = () => {
     document.body.removeChild(link);
   };
 
+  const handleUpload = async (file: File, targetLanguage: string, llmProvider?: string) => {
+    setIsUploading(true);
+    try {
+      await dispatch(uploadTranslation({ file, targetLanguage, llmProvider })).unwrap();
+      toast({
+        title: "Upload Successful",
+        description: "Your document has been uploaded and translation has started.",
+      });
+      setIsUploadDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: "There was an error uploading your document.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const getStatusBadge = (status: TranslationStatus) => {
     switch (status) {
       case TranslationStatus.PENDING:
@@ -187,7 +208,8 @@ const Dashboard = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <UploadForm 
-                  onSuccess={() => setIsUploadDialogOpen(false)}
+                  onUpload={handleUpload}
+                  isUploading={isUploading}
                 />
               </DialogContent>
             </Dialog>
