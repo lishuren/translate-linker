@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 
-import UploadForm from "@/components/translation/UploadForm";
+import { UploadForm } from "@/components/translation/UploadForm";
 
 const Dashboard = () => {
   const navigate = useNavigate();
