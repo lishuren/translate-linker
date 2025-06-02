@@ -122,6 +122,21 @@ const translations = {
     noApiKeysConfigured: 'No API Keys Configured',
     noApiKeysMessage: 'No LLM provider API keys are configured. Please contact your administrator to set up API keys.',
     noFilteredTranslations: 'No translations found for filter:',
+    // New TMX-specific translations
+    uploadTmxTitle: 'Upload Translation Memory (TMX)',
+    uploadTmxDescription: 'Add translation memory files to improve translation quality',
+    selectTmxFile: 'Select TMX File',
+    tmxUploadHint: 'Upload TMX files to enhance translation accuracy with your existing translation memory',
+    translationUnitsProcessed: 'translation units processed',
+    unitsParsed: 'Units Parsed',
+    newUnits: 'New Units',
+    updatedUnits: 'Updated Units',
+    totalUnits: 'Total Translation Units',
+    tmxLibraryTitle: 'Translation Memory Library',
+    tmxLibraryDescription: 'Translation memory files that will be used for RAG-enhanced translations',
+    units: 'Units',
+    noTmxFiles: 'No TMX files uploaded yet',
+    uploadTmxHint: 'Upload TMX files to enhance translation quality with your existing translation memory',
   },
   zh: {
     title: 'LingoAIO 翻译',
@@ -240,6 +255,21 @@ const translations = {
     noApiKeysConfigured: '未配置API密钥',
     noApiKeysMessage: '未配置LLM提供商API密钥。请联系管理员设置API密钥。',
     noFilteredTranslations: '未找到筛选的翻译：',
+    // New TMX-specific translations
+    uploadTmxTitle: '上传翻译记忆库 (TMX)',
+    uploadTmxDescription: '添加翻译记忆库文件以提高翻译质量',
+    selectTmxFile: '选择TMX文件',
+    tmxUploadHint: '上传TMX文件以使用现有翻译记忆库提高翻译准确性',
+    translationUnitsProcessed: '个翻译单元已处理',
+    unitsParsed: '已解析单元',
+    newUnits: '新增单元',
+    updatedUnits: '更新单元',
+    totalUnits: '总翻译单元',
+    tmxLibraryTitle: '翻译记忆库',
+    tmxLibraryDescription: '将用于RAG增强翻译的翻译记忆库文件',
+    units: '单元',
+    noTmxFiles: '尚未上传TMX文件',
+    uploadTmxHint: '上传TMX文件以使用现有翻译记忆库提高翻译质量',
   }
 };
 
