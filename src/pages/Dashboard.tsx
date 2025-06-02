@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
@@ -7,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
 import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus, uploadDocument } from "@/store/slices/translationSlice";
 import { translationApi } from "@/services/translationApi";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +28,7 @@ import { UploadForm } from "@/components/translation/UploadForm";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { translations, status } = useAppSelector((state) => state.translation);
@@ -85,13 +88,13 @@ const Dashboard = () => {
             // Show notification for completed or failed translations
             if (response.status === TranslationStatus.COMPLETED) {
               toast({
-                title: "Translation Completed",
-                description: `Your document "${translation.originalFileName}" has been translated.`,
+                title: t('translationCompleted'),
+                description: `${t('fileName')}: "${translation.originalFileName}"`,
               });
             } else if (response.status === TranslationStatus.FAILED) {
               toast({
-                title: "Translation Failed",
-                description: response.errorMessage || "An error occurred during translation.",
+                title: t('translationFailed'),
+                description: response.errorMessage || t('translationError'),
                 variant: "destructive"
               });
             }
@@ -103,7 +106,7 @@ const Dashboard = () => {
     }, 5000);
     
     return () => clearInterval(intervalId);
-  }, [translations, dispatch, toast]);
+  }, [translations, dispatch, toast, t]);
 
   const handleRefresh = () => {
     setIsLoading(true);
@@ -112,7 +115,7 @@ const Dashboard = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this translation?")) {
+    if (window.confirm(t('deleteConfirmMessage'))) {
       dispatch(deleteTranslation(id));
     }
   };
@@ -134,14 +137,14 @@ const Dashboard = () => {
     try {
       await dispatch(uploadDocument({ file, targetLanguage, llmProvider })).unwrap();
       toast({
-        title: "Upload Successful",
-        description: "Your document has been uploaded and translation has started.",
+        title: t('uploadSuccess'),
+        description: t('uploadedDescription'),
       });
       setIsUploadDialogOpen(false);
     } catch (error) {
       toast({
-        title: "Upload Failed",
-        description: "There was an error uploading your document.",
+        title: t('uploadFailed'),
+        description: t('tryAgain'),
         variant: "destructive"
       });
     } finally {
@@ -152,13 +155,13 @@ const Dashboard = () => {
   const getStatusBadge = (status: TranslationStatus) => {
     switch (status) {
       case TranslationStatus.PENDING:
-        return <Badge variant="outline" className="flex items-center gap-1"><Clock className="h-3 w-3" /> Pending</Badge>;
+        return <Badge variant="outline" className="flex items-center gap-1"><Clock className="h-3 w-3" /> {t('pending')}</Badge>;
       case TranslationStatus.PROCESSING:
-        return <Badge variant="secondary" className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Processing</Badge>;
+        return <Badge variant="secondary" className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> {t('processing')}</Badge>;
       case TranslationStatus.COMPLETED:
-        return <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
+        return <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"><CheckCircle2 className="h-3 w-3" /> {t('completed')}</Badge>;
       case TranslationStatus.FAILED:
-        return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Failed</Badge>;
+        return <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {t('failed')}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -176,9 +179,9 @@ const Dashboard = () => {
     <div className="container mx-auto py-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('dashboard')}</h1>
           <p className="text-muted-foreground">
-            Manage your translation projects and documents
+            {t('manageDocuments')}
           </p>
         </div>
         
@@ -186,26 +189,26 @@ const Dashboard = () => {
           {/* Add TMX Manager Button */}
           <Link to="/tmx-manager">
             <Button variant="outline" className="h-9">
-              TMX Manager
+              {t('tmxManager')}
             </Button>
           </Link>
           
           <Button variant="outline" className="h-9" onClick={handleRefresh} disabled={isLoading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('refresh')}
           </Button>
            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="h-9">
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload Document
+                  {t('uploadDocument')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Upload Document for Translation</DialogTitle>
+                  <DialogTitle>{t('uploadTitle')}</DialogTitle>
                   <DialogDescription>
-                    Upload a document to translate it to your desired language.
+                    {t('uploadSubtitle')}
                   </DialogDescription>
                 </DialogHeader>
                 <UploadForm 
@@ -222,9 +225,9 @@ const Dashboard = () => {
         apiKeyStatus.api_key_status.configured_providers_count === 0 && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No API Keys Configured</AlertTitle>
+          <AlertTitle>{t('noApiKeysConfigured')}</AlertTitle>
           <AlertDescription>
-            No LLM provider API keys are configured. Please contact your administrator to set up API keys.
+            {t('noApiKeysMessage')}
           </AlertDescription>
         </Alert>
       )}
@@ -232,19 +235,19 @@ const Dashboard = () => {
       <Tabs defaultValue="all" value={selectedTab} onValueChange={setSelectedTab}>
         <div className="flex items-center justify-between">
           <TabsList>
-            <TabsTrigger value="all">All Translations</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="processing">In Progress</TabsTrigger>
-            <TabsTrigger value="failed">Failed</TabsTrigger>
+            <TabsTrigger value="all">{t('allTranslations')}</TabsTrigger>
+            <TabsTrigger value="completed">{t('completed')}</TabsTrigger>
+            <TabsTrigger value="processing">{t('inProgress')}</TabsTrigger>
+            <TabsTrigger value="failed">{t('failed')}</TabsTrigger>
           </TabsList>
         </div>
         
         <TabsContent value={selectedTab} className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Translation History</CardTitle>
+              <CardTitle>{t('translationHistory')}</CardTitle>
               <CardDescription>
-                View and manage your document translations
+                {t('viewAndManage')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -256,11 +259,11 @@ const Dashboard = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Document</TableHead>
-                      <TableHead>Target Language</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t('fileName')}</TableHead>
+                      <TableHead>{t('targetLanguage')}</TableHead>
+                      <TableHead>{t('status')}</TableHead>
+                      <TableHead>{t('uploadTime')}</TableHead>
+                      <TableHead className="text-right">{t('actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -313,19 +316,18 @@ const Dashboard = () => {
               ) : (
                 <div className="text-center py-8">
                   <FileType className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
-                  <h3 className="mt-4 text-lg font-medium">No translations found</h3>
+                  <h3 className="mt-4 text-lg font-medium">{t('noTranslationsFound')}</h3>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {selectedTab === "all" 
-                      ? "Upload a document to get started with translation" 
-                      : `No ${selectedTab} translations found`}
+                      ? t('uploadFirst')
+                      : `${t('noFilteredTranslations')} ${selectedTab}`}
                   </p>
                   {selectedTab === "all" && (
                     <Button 
                       onClick={() => setIsUploadDialogOpen(true)} 
                       className="mt-4"
                     >
-                     
-                      Upload Document
+                      {t('uploadDocument')}
                     </Button>
                   )}
                 </div>
@@ -339,3 +341,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

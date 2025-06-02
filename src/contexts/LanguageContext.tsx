@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Define the language types
@@ -87,7 +86,7 @@ const translations = {
     languageLabel: 'Language',
     home: 'Home',
     welcomeBack: 'Welcome back',
-    manageDocuments: 'Manage your documents',
+    manageDocuments: 'Manage your translation projects and documents',
     uploadDocument: 'Upload Document',
     translateDocument: 'Translate Document',
     uploadDescription: 'Upload any document to translate with AI',
@@ -115,6 +114,14 @@ const translations = {
     translationError: 'Error in translation process',
     deleteConfirm: 'Delete Confirmation',
     deleteConfirmMessage: 'Are you sure you want to delete this translation?',
+    refresh: 'Refresh',
+    tmxManager: 'TMX Manager',
+    allTranslations: 'All Translations',
+    inProgress: 'In Progress',
+    viewAndManage: 'View and manage your document translations',
+    noApiKeysConfigured: 'No API Keys Configured',
+    noApiKeysMessage: 'No LLM provider API keys are configured. Please contact your administrator to set up API keys.',
+    noFilteredTranslations: 'No translations found for filter:',
   },
   zh: {
     title: 'LingoAIO 翻译',
@@ -197,7 +204,7 @@ const translations = {
     languageLabel: '语言',
     home: '首页',
     welcomeBack: '欢迎回来',
-    manageDocuments: '管理您的文档',
+    manageDocuments: '管理您的翻译项目和文档',
     uploadDocument: '上传文档',
     translateDocument: '翻译文档',
     uploadDescription: '上传任何文档以使用AI翻译',
@@ -225,6 +232,14 @@ const translations = {
     translationError: '翻译过程出错',
     deleteConfirm: '删除确认',
     deleteConfirmMessage: '您确定要删除此翻译吗？',
+    refresh: '刷新',
+    tmxManager: 'TMX 管理器',
+    allTranslations: '所有翻译',
+    inProgress: '进行中',
+    viewAndManage: '查看和管理您的文档翻译',
+    noApiKeysConfigured: '未配置API密钥',
+    noApiKeysMessage: '未配置LLM提供商API密钥。请联系管理员设置API密钥。',
+    noFilteredTranslations: '未找到筛选的翻译：',
   }
 };
 
