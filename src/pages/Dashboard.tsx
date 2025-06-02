@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Upload, Loader2, RefreshCw, Download, Trash2, AlertCircle, CheckCircle2, Clock, FileType } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector, useAppDispatch } from "@/hooks/use-redux";
-import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus, uploadTranslation } from "@/store/slices/translationSlice";
+import { fetchTranslations, deleteTranslation, TranslationStatus, updateTranslationStatus, uploadDocument } from "@/store/slices/translationSlice";
 import { translationApi } from "@/services/translationApi";
 
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,7 @@ const Dashboard = () => {
   const handleUpload = async (file: File, targetLanguage: string, llmProvider?: string) => {
     setIsUploading(true);
     try {
-      await dispatch(uploadTranslation({ file, targetLanguage, llmProvider })).unwrap();
+      await dispatch(uploadDocument({ file, targetLanguage, llmProvider })).unwrap();
       toast({
         title: "Upload Successful",
         description: "Your document has been uploaded and translation has started.",
